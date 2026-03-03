@@ -113,7 +113,7 @@ export function SearchView() {
     <>
       <header className="pt-16 sm:pt-24 pb-8 sm:pb-12">
         <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-neutral-900">
-          Is this hadith real?
+          Check the Chain
         </h1>
         <p className="mt-2 text-sm text-neutral-500 leading-relaxed max-w-md">
           Verify hadith against 47,000+ narrations from

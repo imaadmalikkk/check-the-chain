@@ -42,8 +42,10 @@ function getSnapshot(): Route {
   return currentRoute;
 }
 
+const SERVER_SNAPSHOT: Route = { page: "search" };
+
 function getServerSnapshot(): Route {
-  return { page: "search" };
+  return SERVER_SNAPSHOT;
 }
 
 if (typeof window !== "undefined") {

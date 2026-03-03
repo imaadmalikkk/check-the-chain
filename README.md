@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Check the Chain
 
-## Getting Started
+Verify hadith authenticity against 47,000+ narrations from Bukhari, Muslim, and 15 other major collections.
 
-First, run the development server:
+Fully client-side. No server. No tracking. Just search.
 
-```bash
+---
+
+## What it does
+
+Type a hadith — or even a rough description of one — and Check the Chain finds matching narrations across 17 classical collections. Results include the source, book, chapter, hadith number, and grading where available.
+
+Search is powered by a local AI model that runs entirely in your browser using [Transformers.js](https://huggingface.co/docs/transformers.js). Nothing leaves your device.
+
+## Collections
+
+**The Nine Books** — Sahih al-Bukhari, Sahih Muslim, Sunan al-Nasa'i, Sunan Abi Dawud, Sunan Ibn Majah, Jami' al-Tirmidhi, Muwatta Malik, Musnad Ahmad ibn Hanbal
+
+**Other Collections** — Mishkat al-Masabih, Riyad as-Salihin, Bulugh al-Maram, Al-Adab Al-Mufrad, Shama'il Muhammadiyah
+
+**Forties** — Imam Nawawi's 40, 40 Hadith Qudsi, Shah Waliullah's 40
+
+## Running locally
+
+```
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+To rebuild the search index and embeddings:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+npm run build
+npm run build:embeddings
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Stack
 
-## Learn More
+- [Next.js](https://nextjs.org) with static export
+- [Transformers.js](https://huggingface.co/docs/transformers.js) for in-browser semantic search
+- [FlexSearch](https://github.com/nextapps-de/flexsearch) for keyword search
+- [Tailwind CSS](https://tailwindcss.com)
 
-To learn more about Next.js, take a look at the following resources:
+## Disclaimer
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+This tool searches major hadith collections. It is not a substitute for scholarly verification.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## License
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT

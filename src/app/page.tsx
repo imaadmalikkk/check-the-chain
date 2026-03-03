@@ -20,7 +20,7 @@ function App() {
       <main id="main-content" className="flex-1 w-full max-w-2xl mx-auto px-4 sm:px-6">
         <div className="pt-8 sm:pt-12 flex items-center justify-between">
           <Link href="/" className="text-sm font-medium text-neutral-900 hover:text-neutral-700 transition-colors">
-            hadith-check
+            Check the Chain
           </Link>
           <Nav />
         </div>
@@ -38,7 +38,7 @@ function App() {
             for scholarly verification.
           </p>
           <a
-            href="https://github.com/imaadmalik/hadith-check"
+            href="https://github.com/imaadmalikkk/check-the-chain"
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-neutral-500 hover:text-neutral-700 transition-colors"
