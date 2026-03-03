@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# generated embeddings (72MB, rebuild with: npm run build:embeddings)
+/public/hadith-embeddings.bin
+/.cache/
