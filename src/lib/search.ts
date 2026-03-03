@@ -158,3 +158,15 @@ export async function searchHadith(
 export function isLoaded(): boolean {
   return hadithData.length > 0;
 }
+
+export function getHadithData(): Hadith[] {
+  return hadithData;
+}
+
+export function getHadithByRef(collection: string, number: string): Hadith | undefined {
+  return hadithData.find((h) => h.collection === collection && h.hadithNumber === number);
+}
+
+export function getHadithByCollection(collection: string): Hadith[] {
+  return hadithData.filter((h) => h.collection === collection);
+}
