@@ -47,4 +47,4 @@ This tool searches major hadith collections. It is not a substitute for scholarl
 
 ## License
 
-MIT
+MIT — free to use, modify, and distribute. See [LICENSE](LICENSE) for details.
