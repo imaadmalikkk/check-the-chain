@@ -22,8 +22,8 @@ export function SearchView() {
   const [indexReady, setIndexReady] = useState(false);
   const [searching, setSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
-  const [semanticStatus, setSemanticStatus] = useState<SemanticStatus>("idle");
-  const [semanticProgress, setSemanticProgress] = useState(0);
+  const [semanticStatus, setSemanticStatus] = useState<SemanticStatus>(getSemanticStatus);
+  const [semanticProgress, setSemanticProgress] = useState(getSemanticProgress);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [activeCollections, setActiveCollections] = useState<Set<string>>(new Set());
   const [activeGradings, setActiveGradings] = useState<Set<Grading>>(new Set());
@@ -32,8 +32,6 @@ export function SearchView() {
 
   useEffect(() => {
     initSearch().then(() => setIndexReady(true));
-    setSemanticStatus(getSemanticStatus());
-    setSemanticProgress(getSemanticProgress());
     return onSemanticStatusChange((s, p) => {
       setSemanticStatus(s);
       setSemanticProgress(p);
@@ -56,9 +54,9 @@ export function SearchView() {
   // Auto-search from URL param once semantic search is ready
   useEffect(() => {
     if (isReady && query) {
-      doSearch(query);
+      const run = async () => { await doSearch(query); };
+      run();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isReady, doSearch, query]);
 
   function handleChange(value: string) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
+import Link from "next/link";
 import { useRoute } from "@/lib/router";
 import { Nav } from "@/components/nav";
 import { SearchView } from "@/components/search-view";
@@ -18,15 +19,15 @@ function App() {
       </a>
       <main id="main-content" className="flex-1 w-full max-w-2xl mx-auto px-4 sm:px-6">
         <div className="pt-8 sm:pt-12 flex items-center justify-between">
-          <a href="/" className="text-sm font-medium text-neutral-900 hover:text-neutral-700 transition-colors">
+          <Link href="/" className="text-sm font-medium text-neutral-900 hover:text-neutral-700 transition-colors">
             hadith-check
-          </a>
+          </Link>
           <Nav />
         </div>
 
         {route.page === "search" && <SearchView />}
         {route.page === "browse" && <BrowseView />}
-        {route.page === "collection" && <CollectionView slug={route.slug} />}
+        {route.page === "collection" && <CollectionView slug={route.slug} key={route.slug} />}
         {route.page === "hadith" && <HadithView slug={route.slug} number={route.number} />}
       </main>
 

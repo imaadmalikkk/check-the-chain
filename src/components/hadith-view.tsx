@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { getCollectionBySlug } from "@/lib/collections";
 import { collectionUrl } from "@/lib/router";
 import { initSearch, getHadithByRef } from "@/lib/search";
@@ -54,9 +55,9 @@ export function HadithView({ slug, number }: { slug: string; number: string }) {
     return (
       <div className="pt-16 sm:pt-24 text-center">
         <p className="text-sm text-neutral-500">Collection not found.</p>
-        <a href="/" className="text-sm text-neutral-700 hover:text-neutral-900 mt-2 inline-block">
+        <Link href="/" className="text-sm text-neutral-700 hover:text-neutral-900 mt-2 inline-block">
           Back to search
-        </a>
+        </Link>
       </div>
     );
   }

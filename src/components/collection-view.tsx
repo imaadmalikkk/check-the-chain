@@ -24,10 +24,6 @@ export function CollectionView({ slug }: { slug: string }) {
     });
   }, [collection]);
 
-  useEffect(() => {
-    setPage(0);
-  }, [slug]);
-
   const totalPages = Math.ceil(hadithList.length / PAGE_SIZE);
   const pageItems = useMemo(
     () => hadithList.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
