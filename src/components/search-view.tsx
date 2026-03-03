@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { SearchInput } from "@/components/search-input";
 import { ResultCard } from "@/components/result-card";
+import { FilterChips } from "@/components/filter-chips";
 import { initSearch, searchHadith } from "@/lib/search";
 import {
   getSemanticStatus,
@@ -11,7 +12,7 @@ import {
   onSemanticStatusChange,
   type SemanticStatus,
 } from "@/lib/semantic-search";
-import type { SearchResult } from "@/lib/types";
+import type { SearchResult, Grading } from "@/lib/types";
 
 export function SearchView() {
   const searchParams = useSearchParams();
@@ -24,6 +25,8 @@ export function SearchView() {
   const [semanticStatus, setSemanticStatus] = useState<SemanticStatus>("idle");
   const [semanticProgress, setSemanticProgress] = useState(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const [activeCollections, setActiveCollections] = useState<Set<string>>(new Set());
+  const [activeGradings, setActiveGradings] = useState<Set<Grading>>(new Set());
 
   const isReady = semanticStatus === "ready" || semanticStatus === "error";
 
@@ -67,9 +70,38 @@ export function SearchView() {
     router.replace(url, { scroll: false });
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    setActiveCollections(new Set());
+    setActiveGradings(new Set());
     debounceRef.current = setTimeout(() => {
       doSearch(value);
     }, 300);
+  }
+
+  const resultCollections = [...new Set(results.map((r) => r.hadith.collection))];
+  const resultGradings = [...new Set(results.map((r) => r.hadith.grading).filter((g) => g !== "Unknown"))] as Grading[];
+
+  const filteredResults = results.filter((r) => {
+    if (activeCollections.size > 0 && !activeCollections.has(r.hadith.collection)) return false;
+    if (activeGradings.size > 0 && !activeGradings.has(r.hadith.grading)) return false;
+    return true;
+  });
+
+  function toggleCollection(col: string) {
+    setActiveCollections((prev) => {
+      const next = new Set(prev);
+      if (next.has(col)) next.delete(col);
+      else next.add(col);
+      return next;
+    });
+  }
+
+  function toggleGrading(g: Grading) {
+    setActiveGradings((prev) => {
+      const next = new Set(prev);
+      if (next.has(g)) next.delete(g);
+      else next.add(g);
+      return next;
+    });
   }
 
   const loadingLabel =
@@ -124,7 +156,17 @@ export function SearchView() {
       </section>
 
       <section id="results" className="space-y-3 pb-16">
-        {results.map((r) => (
+        {results.length > 0 && (
+          <FilterChips
+            collections={resultCollections}
+            gradings={resultGradings}
+            activeCollections={activeCollections}
+            activeGradings={activeGradings}
+            onToggleCollection={toggleCollection}
+            onToggleGrading={toggleGrading}
+          />
+        )}
+        {filteredResults.map((r) => (
           <ResultCard key={r.hadith.id} result={r} query={query} />
         ))}
 

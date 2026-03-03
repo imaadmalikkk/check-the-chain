@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import type { SearchResult } from "@/lib/types";
+import { hadithUrl } from "@/lib/router";
+import { slugFromName } from "@/lib/collections";
 import { GradingBadge } from "./grading-badge";
 
 const STOP_WORDS = new Set([
@@ -48,7 +50,9 @@ export function ResultCard({
   const [copied, setCopied] = useState(false);
   const { hadith, score } = result;
 
-  const shareUrl = `${typeof window !== "undefined" ? window.location.origin : ""}?q=${encodeURIComponent(query)}`;
+  const slug = slugFromName(hadith.collection);
+  const detailPath = hadithUrl(slug, hadith.hadithNumber);
+  const shareUrl = `${typeof window !== "undefined" ? window.location.origin : ""}${detailPath}`;
 
   function handleShare() {
     navigator.clipboard.writeText(shareUrl).then(() => {
@@ -79,8 +83,13 @@ export function ResultCard({
         </button>
       </div>
 
-      <h3 className="text-sm text-neutral-700 mb-1.5 font-medium">
-        {hadith.reference}
+      <h3 className="text-sm mb-1.5 font-medium">
+        <a
+          href={detailPath}
+          className="text-neutral-700 hover:text-neutral-900 transition-colors"
+        >
+          {hadith.reference}
+        </a>
       </h3>
 
       {hadith.narrator && (
