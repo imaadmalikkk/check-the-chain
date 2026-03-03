@@ -4,6 +4,9 @@ import { Suspense } from "react";
 import { useRoute } from "@/lib/router";
 import { Nav } from "@/components/nav";
 import { SearchView } from "@/components/search-view";
+import { BrowseView } from "@/components/browse-view";
+import { CollectionView } from "@/components/collection-view";
+import { HadithView } from "@/components/hadith-view";
 
 function App() {
   const route = useRoute();
@@ -22,9 +25,9 @@ function App() {
         </div>
 
         {route.page === "search" && <SearchView />}
-        {route.page === "browse" && <div>Browse placeholder</div>}
-        {route.page === "collection" && <div>Collection placeholder: {route.slug}</div>}
-        {route.page === "hadith" && <div>Hadith placeholder: {route.slug}/{route.number}</div>}
+        {route.page === "browse" && <BrowseView />}
+        {route.page === "collection" && <CollectionView slug={route.slug} />}
+        {route.page === "hadith" && <HadithView slug={route.slug} number={route.number} />}
       </main>
 
       <footer className="border-t border-neutral-100 py-8 px-4 sm:px-6">
