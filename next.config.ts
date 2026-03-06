@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["better-sqlite3"],
+  images: { unoptimized: true },
   outputFileTracingIncludes: {
     "/api/search": ["./data/hadith.db", "./data/models/**/*"],
     "/hadith/[collection]/[number]": ["./data/hadith.db"],

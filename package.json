@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build:db": "tsx scripts/build-db.ts",
-    "prebuild": "gunzip -kf data/hadith.db.gz && tsx scripts/download-model.ts",
+    "prebuild": "gunzip -f data/hadith.db.gz && tsx scripts/download-model.ts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
