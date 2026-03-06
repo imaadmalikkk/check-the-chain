@@ -115,7 +115,7 @@ export function SearchView() {
           />
         )}
         {filteredResults.map((r) => (
-          <ResultCard key={r.hadith.id} result={r} query={query} />
+          <ResultCard key={r.hadith._id} result={r} query={query} />
         ))}
 
         {hasSearched && results.length === 0 && !searching && (

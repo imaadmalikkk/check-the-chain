@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { fetchQuery } from "convex/nextjs";
+import { api } from "@convex/_generated/api";
 import { getCollectionBySlug } from "@/lib/collections";
-import { getHadithByRef, getIsnadChain } from "@/lib/db";
 import { HadithDetail } from "@/components/hadith-detail";
 
 export async function generateMetadata({
@@ -13,7 +14,7 @@ export async function generateMetadata({
   const collection = getCollectionBySlug(slug);
   if (!collection) return {};
 
-  const hadith = getHadithByRef(slug, number);
+  const hadith = await fetchQuery(api.hadith.getByRef, { slug, number });
   if (!hadith) return {};
 
   const title = `${collection.name} ${number} — Check the Chain`;
@@ -36,16 +37,14 @@ export default async function HadithPage({
   const collection = getCollectionBySlug(slug);
   if (!collection) notFound();
 
-  const hadith = getHadithByRef(slug, number);
+  const hadith = await fetchQuery(api.hadith.getByRef, { slug, number });
   if (!hadith) notFound();
-
-  const chain = getIsnadChain(hadith.id);
 
   return (
     <HadithDetail
       hadith={hadith}
       collection={collection}
-      hasIsnad={!!chain}
+      hasIsnad={!!hadith.isnad_narrators}
     />
   );
 }

@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { getCollectionCounts } from "@/lib/db";
+import { fetchQuery } from "convex/nextjs";
+import { api } from "@convex/_generated/api";
 import { getAllCollections, getCollectionsByGroup, type CollectionMeta } from "@/lib/collections";
 import { collectionUrl } from "@/lib/urls";
 
-export default function BrowsePage() {
-  const counts = getCollectionCounts();
+export default async function BrowsePage() {
+  const rows = await fetchQuery(api.hadith.getCollectionCounts);
+  const counts = new Map(rows.map((r) => [r.slug, r.count]));
 
   const groups: { title: string; key: CollectionMeta["group"] }[] = [
     { title: "The Nine Books", key: "nine-books" },

@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { fetchQuery } from "convex/nextjs";
+import { api } from "@convex/_generated/api";
 import { getCollectionBySlug } from "@/lib/collections";
-import { getHadithByRef, getIsnadChain } from "@/lib/db";
 import { hadithUrl } from "@/lib/urls";
 
 function ChainNode({
@@ -57,10 +58,10 @@ export default async function IsnadPage({
   const collection = getCollectionBySlug(slug);
   if (!collection) notFound();
 
-  const hadith = getHadithByRef(slug, number);
+  const hadith = await fetchQuery(api.hadith.getByRef, { slug, number });
   if (!hadith) notFound();
 
-  const chain = getIsnadChain(hadith.id);
+  const chain = hadith.isnad_narrators ?? null;
   const reference = `${collection.name} ${number}`;
 
   return (

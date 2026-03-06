@@ -1,15 +1,17 @@
 export type Grading = "Sahih" | "Hasan" | "Da'if" | "Mawdu'" | "Unknown";
 
 export interface Hadith {
-  id: number;
+  _id: string;
   collection: string;
   collection_slug: string;
   hadith_number: string;
+  order: number;
   narrator: string;
   english: string;
   arabic: string;
   grading: string;
   graded_by: string;
+  isnad_narrators?: string[];
 }
 
 export interface SearchResult {

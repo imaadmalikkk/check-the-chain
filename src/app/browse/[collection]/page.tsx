@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { fetchQuery } from "convex/nextjs";
+import { api } from "@convex/_generated/api";
 import { getCollectionBySlug } from "@/lib/collections";
-import { getHadithByCollectionPaginated } from "@/lib/db";
 import { hadithUrl, browseUrl } from "@/lib/urls";
 import { GradingBadge } from "@/components/grading-badge";
 
@@ -20,7 +21,10 @@ export default async function CollectionPage({
   if (!collection) notFound();
 
   const page = Math.max(0, parseInt(pageParam ?? "1", 10) - 1);
-  const { hadith: hadithList, total } = getHadithByCollectionPaginated(slug, page, PAGE_SIZE);
+  const { hadith: hadithList, total } = await fetchQuery(
+    api.hadith.getByCollectionPaginated,
+    { slug, page, pageSize: PAGE_SIZE }
+  );
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
@@ -42,7 +46,7 @@ export default async function CollectionPage({
       <div className="space-y-1">
         {hadithList.map((h) => (
           <Link
-            key={h.id}
+            key={h._id}
             href={hadithUrl(slug, h.hadith_number)}
             className="flex items-start gap-3 rounded-lg px-3 py-3 hover:bg-neutral-50 transition-colors"
           >

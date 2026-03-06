@@ -44,14 +44,5 @@ next-env.d.ts
 /public/hadith-embeddings.bin
 /.cache/
 
-# SQLite database (decompressed from hadith.db.gz at build time)
-/data/hadith.db
-/data/hadith.db-shm
-/data/hadith.db-wal
-
 # source hadith JSON (175MB, see README for download instructions)
 /data/hadith-json
-
-# cached ML model (downloaded at build time via prebuild)
-# committed so Vercel can use local_files_only without downloading
-

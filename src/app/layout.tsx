@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Amiri } from "next/font/google";
 import Link from "next/link";
 import { Nav } from "@/components/nav";
+import { Providers } from "./providers";
 import "./globals.css";
 
 const inter = Inter({
@@ -48,6 +49,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: HASH_REDIRECT_SCRIPT }} />
       </head>
       <body className={`${inter.variable} ${amiri.variable} antialiased`}>
+        <Providers>
         <div className="min-h-screen flex flex-col">
           <a
             href="#main-content"
@@ -89,6 +91,7 @@ export default function RootLayout({
             </div>
           </footer>
         </div>
+        </Providers>
       </body>
     </html>
   );
