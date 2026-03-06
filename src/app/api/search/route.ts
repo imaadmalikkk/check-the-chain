@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchAction, fetchQuery } from "convex/nextjs";
 import { api } from "@convex/_generated/api";
-import { embed } from "@/lib/embeddings";
 
 export async function GET(request: NextRequest) {
   const q = request.nextUrl.searchParams.get("q")?.trim() ?? "";
@@ -13,7 +12,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Generate embedding for the query and run hybrid search
+    // Dynamic import to avoid crashing serverless if ONNX runtime isn't available
+    const { embed } = await import("@/lib/embeddings");
     const embedding = await embed(q);
     const results = await fetchAction(api.hadith.hybridSearch, {
       embedding,
