@@ -20,5 +20,5 @@ body {
 
 [lang="ar"],
 [dir="rtl"] {
-  font-family: var(--font-arabic), "Amiri", serif;
+  font-family: var(--font-arabic), "Noto Naskh Arabic", serif;
 }

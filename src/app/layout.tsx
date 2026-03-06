@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Amiri } from "next/font/google";
+import { Inter, Noto_Naskh_Arabic } from "next/font/google";
 import Link from "next/link";
 import { Nav } from "@/components/nav";
 import { Providers } from "./providers";
@@ -10,7 +10,7 @@ const inter = Inter({
   subsets: ["latin"],
 });
 
-const amiri = Amiri({
+const notoNaskhArabic = Noto_Naskh_Arabic({
   variable: "--font-arabic",
   subsets: ["arabic"],
   weight: ["400", "700"],
@@ -48,7 +48,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: HASH_REDIRECT_SCRIPT }} />
       </head>
-      <body className={`${inter.variable} ${amiri.variable} antialiased`}>
+      <body className={`${inter.variable} ${notoNaskhArabic.variable} antialiased`}>
         <Providers>
         <div className="min-h-screen flex flex-col">
           <a

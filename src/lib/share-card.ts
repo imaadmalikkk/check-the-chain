@@ -32,9 +32,9 @@ const GRADING_LABELS: Record<Grading, string> = {
   Unknown: "Ungraded",
 };
 
-// Inter for English, Amiri for Arabic — loaded via next/font/google
+// Inter for English, Noto Naskh Arabic for Arabic — loaded via next/font/google
 const ENGLISH_FONT = `"Inter", "Helvetica Neue", Arial, sans-serif`;
-const ARABIC_FONT = `"Amiri", "Noto Naskh Arabic", serif`;
+const ARABIC_FONT = `"Noto Naskh Arabic", serif`;
 
 function wrapText(
   ctx: CanvasRenderingContext2D,
