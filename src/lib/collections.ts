@@ -1,5 +1,3 @@
-"use client";
-
 export interface CollectionMeta {
   name: string;
   slug: string;

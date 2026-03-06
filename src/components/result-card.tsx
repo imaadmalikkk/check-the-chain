@@ -1,19 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import type { SearchResult } from "@/lib/types";
-import { hadithUrl } from "@/lib/router";
-import { slugFromName } from "@/lib/collections";
+import { hadithUrl } from "@/lib/urls";
+import { STOP_WORDS } from "@/lib/stop-words";
 import { GradingBadge } from "./grading-badge";
-
-const STOP_WORDS = new Set([
-  "the","a","an","and","or","but","in","on","at","to","for","of","with","by",
-  "is","was","are","were","be","been","has","have","had","do","does","did",
-  "will","would","could","should","may","might","shall","it","its","he","she",
-  "his","her","they","them","their","we","us","our","you","your","i","me","my",
-  "that","this","these","those","which","who","whom","what","when","where","how",
-  "not","no","nor","if","then","than","so","as","from","into","about","said",
-]);
 
 function highlightMatch(text: string, query: string): React.ReactNode {
   if (!query.trim()) return text;
@@ -50,22 +42,37 @@ export function ResultCard({
   const [copied, setCopied] = useState(false);
   const { hadith, score } = result;
 
-  const slug = slugFromName(hadith.collection);
-  const detailPath = hadithUrl(slug, hadith.hadithNumber);
+  const detailPath = hadithUrl(hadith.collection_slug, hadith.hadith_number);
   const shareUrl = `${typeof window !== "undefined" ? window.location.origin : ""}${detailPath}`;
+  const reference = `${hadith.collection} ${hadith.hadith_number}`;
 
-  function handleShare() {
-    navigator.clipboard.writeText(shareUrl).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
+  async function handleShare(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = shareUrl;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }
 
   return (
-    <article className="border border-neutral-200 rounded-lg p-5 sm:p-6 transition-colors hover:border-neutral-300">
+    <Link
+      href={detailPath}
+      className="block border border-neutral-200 rounded-lg p-5 sm:p-6 transition-colors hover:border-neutral-300"
+    >
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-center gap-2.5 flex-wrap">
-          {hadith.grading !== "Unknown" && (
+          {hadith.grading && hadith.grading !== "Unknown" && (
             <GradingBadge grading={hadith.grading} />
           )}
           <span className="text-xs text-neutral-500 font-mono">
@@ -83,13 +90,8 @@ export function ResultCard({
         </button>
       </div>
 
-      <h3 className="text-sm mb-1.5 font-medium">
-        <a
-          href={detailPath}
-          className="text-neutral-700 hover:text-neutral-900 transition-colors"
-        >
-          {hadith.reference}
-        </a>
+      <h3 className="text-sm mb-1.5 font-medium text-neutral-700">
+        {reference}
       </h3>
 
       {hadith.narrator && (
@@ -102,11 +104,11 @@ export function ResultCard({
         {highlightMatch(hadith.english, query)}
       </p>
 
-      {hadith.gradedBy && (
+      {hadith.graded_by && (
         <p className="text-xs text-neutral-500 mt-3">
-          Graded by: {hadith.gradedBy}
+          {hadith.graded_by}
         </p>
       )}
-    </article>
+    </Link>
   );
 }

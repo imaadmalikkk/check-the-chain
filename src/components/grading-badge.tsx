@@ -16,13 +16,16 @@ const gradingLabels: Record<Grading, string> = {
   Unknown: "Ungraded",
 };
 
-export function GradingBadge({ grading }: { grading: Grading }) {
+const VALID_GRADINGS = new Set<string>(Object.keys(gradingStyles));
+
+export function GradingBadge({ grading }: { grading: string }) {
+  const g: Grading = VALID_GRADINGS.has(grading) ? (grading as Grading) : "Unknown";
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium tracking-wide ${gradingStyles[grading]}`}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium tracking-wide ${gradingStyles[g]}`}
     >
-      {grading}
-      <span className="text-[10px] opacity-60">({gradingLabels[grading]})</span>
+      {g}
+      <span className="text-[10px] opacity-60">({gradingLabels[g]})</span>
     </span>
   );
 }

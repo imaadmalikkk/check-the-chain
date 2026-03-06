@@ -5,13 +5,6 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { SearchInput } from "@/components/search-input";
 import { ResultCard } from "@/components/result-card";
 import { FilterChips } from "@/components/filter-chips";
-import { initSearch, searchHadith } from "@/lib/search";
-import {
-  getSemanticStatus,
-  getSemanticProgress,
-  onSemanticStatusChange,
-  type SemanticStatus,
-} from "@/lib/semantic-search";
 import type { SearchResult, Grading } from "@/lib/types";
 
 export function SearchView() {
@@ -19,45 +12,33 @@ export function SearchView() {
   const router = useRouter();
   const [query, setQuery] = useState(searchParams.get("q") || "");
   const [results, setResults] = useState<SearchResult[]>([]);
-  const [indexReady, setIndexReady] = useState(false);
   const [searching, setSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
-  const [semanticStatus, setSemanticStatus] = useState<SemanticStatus>(getSemanticStatus);
-  const [semanticProgress, setSemanticProgress] = useState(getSemanticProgress);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [activeCollections, setActiveCollections] = useState<Set<string>>(new Set());
   const [activeGradings, setActiveGradings] = useState<Set<Grading>>(new Set());
 
-  const isReady = semanticStatus === "ready" || semanticStatus === "error";
-
-  useEffect(() => {
-    initSearch().then(() => setIndexReady(true));
-    return onSemanticStatusChange((s, p) => {
-      setSemanticStatus(s);
-      setSemanticProgress(p);
-    });
-  }, []);
-
   const doSearch = useCallback(async (q: string) => {
-    if (!q.trim()) {
+    if (!q.trim() || q.trim().length < 3) {
       setResults([]);
       setHasSearched(false);
       return;
     }
     setSearching(true);
-    const r = await searchHadith(q);
-    setResults(r);
-    setHasSearched(true);
-    setSearching(false);
+    try {
+      const res = await fetch(`/api/search?q=${encodeURIComponent(q.trim())}`);
+      const data = await res.json();
+      setResults(data.results);
+      setHasSearched(true);
+    } finally {
+      setSearching(false);
+    }
   }, []);
 
-  // Auto-search from URL param once semantic search is ready
+  // Auto-search from URL param on mount
   useEffect(() => {
-    if (isReady && query) {
-      const run = async () => { await doSearch(query); };
-      run();
-    }
-  }, [isReady, doSearch, query]);
+    if (query) doSearch(query);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleChange(value: string) {
     setQuery(value);
@@ -76,11 +57,11 @@ export function SearchView() {
   }
 
   const resultCollections = [...new Set(results.map((r) => r.hadith.collection))];
-  const resultGradings = [...new Set(results.map((r) => r.hadith.grading).filter((g) => g !== "Unknown"))] as Grading[];
+  const resultGradings = [...new Set(results.map((r) => r.hadith.grading).filter((g) => g && g !== "Unknown"))] as Grading[];
 
   const filteredResults = results.filter((r) => {
     if (activeCollections.size > 0 && !activeCollections.has(r.hadith.collection)) return false;
-    if (activeGradings.size > 0 && !activeGradings.has(r.hadith.grading)) return false;
+    if (activeGradings.size > 0 && !activeGradings.has(r.hadith.grading as Grading)) return false;
     return true;
   });
 
@@ -102,13 +83,6 @@ export function SearchView() {
     });
   }
 
-  const loadingLabel =
-    !indexReady
-      ? "Loading search index…"
-      : semanticStatus === "loading-model"
-        ? "Downloading AI model…"
-        : "Loading embeddings…";
-
   return (
     <>
       <header className="pt-16 sm:pt-24 pb-8 sm:pb-12">
@@ -122,35 +96,11 @@ export function SearchView() {
       </header>
 
       <section className="mb-8">
-        {!isReady ? (
-          <div className="rounded-lg border border-neutral-200 bg-white px-4 py-5">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-neutral-500">{loadingLabel}</p>
-              {indexReady && (
-                <span className="text-xs text-neutral-400 font-mono tabular-nums">
-                  {semanticProgress}%
-                </span>
-              )}
-            </div>
-            <div className="h-1.5 w-full rounded-full bg-neutral-100 overflow-hidden">
-              <div
-                className="h-full rounded-full bg-neutral-900 transition-all duration-300 ease-out"
-                role="progressbar"
-                aria-valuenow={indexReady ? semanticProgress : 0}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-label={loadingLabel}
-                style={{ width: `${indexReady ? semanticProgress : 0}%` }}
-              />
-            </div>
-          </div>
-        ) : (
-          <SearchInput
-            value={query}
-            onChange={handleChange}
-            isLoading={searching}
-          />
-        )}
+        <SearchInput
+          value={query}
+          onChange={handleChange}
+          isLoading={searching}
+        />
       </section>
 
       <section id="results" className="space-y-3 pb-16">

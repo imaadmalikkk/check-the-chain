@@ -2,15 +2,13 @@
 
 Verify hadith authenticity against 47,000+ narrations from Bukhari, Muslim, and 15 other major collections.
 
-Fully client-side. No server. No tracking. Just search.
-
 ---
 
 ## What it does
 
 Type a hadith — or even a rough description of one — and Check the Chain finds matching narrations across 17 classical collections. Results include the source, book, chapter, hadith number, and grading where available.
 
-Search is powered by a local AI model that runs entirely in your browser using [Transformers.js](https://huggingface.co/docs/transformers.js). Nothing leaves your device.
+Search is powered by a local AI model that runs in your browser using [Transformers.js](https://huggingface.co/docs/transformers.js) for semantic matching, alongside keyword search for fast exact lookups.
 
 ## Collections
 
@@ -22,23 +20,33 @@ Search is powered by a local AI model that runs entirely in your browser using [
 
 ## Running locally
 
+### 1. Get the source data
+
+Download the hadith JSON data into `data/hadith-json/`. The build script expects JSON files at `data/hadith-json/db/by_book/`.
+
+### 2. Install and build
+
 ```
 npm install
-npm run dev
+npm run build:db        # builds SQLite database from source JSON
+npm run build:embeddings # builds semantic search embeddings
+npm run dev             # start dev server
 ```
 
-To rebuild the search index and embeddings:
+The `prebuild` script runs `build:db` and downloads the ML model automatically when you run `npm run build`.
+
+### 3. Production build
 
 ```
 npm run build
-npm run build:embeddings
+npm start
 ```
 
 ## Stack
 
-- [Next.js](https://nextjs.org) with static export
+- [Next.js](https://nextjs.org) with App Router
 - [Transformers.js](https://huggingface.co/docs/transformers.js) for in-browser semantic search
-- [FlexSearch](https://github.com/nextapps-de/flexsearch) for keyword search
+- [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) for server-side hadith storage and search
 - [Tailwind CSS](https://tailwindcss.com)
 
 ## Disclaimer

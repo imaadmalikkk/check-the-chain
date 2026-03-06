@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "tsx scripts/build-index.ts",
+    "build:db": "tsx scripts/build-db.ts",
+    "prebuild": "gunzip -kf data/hadith.db.gz && tsx scripts/download-model.ts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -12,13 +13,15 @@
   },
   "dependencies": {
     "@huggingface/transformers": "^3.8.1",
-    "flexsearch": "^0.8.212",
+    "better-sqlite3": "^12.6.2",
     "next": "16.1.6",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

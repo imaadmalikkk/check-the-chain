@@ -1,19 +1,20 @@
 "use client";
 
-import { useRoute, searchUrl, browseUrl } from "@/lib/router";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 export function Nav() {
-  const route = useRoute();
+  const pathname = usePathname();
 
   const links = [
-    { label: "Search", href: searchUrl(), active: route.page === "search" },
-    { label: "Browse", href: browseUrl(), active: route.page === "browse" || route.page === "collection" },
+    { label: "Search", href: "/", active: pathname === "/" },
+    { label: "Browse", href: "/browse", active: pathname.startsWith("/browse") },
   ];
 
   return (
     <nav className="flex gap-6 text-sm">
       {links.map((link) => (
-        <a
+        <Link
           key={link.label}
           href={link.href}
           className={`transition-colors ${
@@ -23,7 +24,7 @@ export function Nav() {
           }`}
         >
           {link.label}
-        </a>
+        </Link>
       ))}
     </nav>
   );
