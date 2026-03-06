@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { SearchInput } from "@/components/search-input";
 import { ResultCard } from "@/components/result-card";
 import { FilterChips } from "@/components/filter-chips";
+import { useEmbedding } from "@/lib/use-embedding";
 import type { SearchResult, Grading } from "@/lib/types";
 
 export function SearchView() {
@@ -14,9 +15,20 @@ export function SearchView() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [progressVisible, setProgressVisible] = useState(true);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [activeCollections, setActiveCollections] = useState<Set<string>>(new Set());
   const [activeGradings, setActiveGradings] = useState<Set<Grading>>(new Set());
+  const { embed, ready: embeddingReady, progress } = useEmbedding();
+  const hasAutoSearched = useRef(false);
+
+  // Once ready, fade out progress bar then enable search
+  useEffect(() => {
+    if (embeddingReady) {
+      const timer = setTimeout(() => setProgressVisible(false), 400);
+      return () => clearTimeout(timer);
+    }
+  }, [embeddingReady]);
 
   const doSearch = useCallback(async (q: string) => {
     if (!q.trim() || q.trim().length < 3) {
@@ -26,19 +38,27 @@ export function SearchView() {
     }
     setSearching(true);
     try {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(q.trim())}`);
+      const embedding = await embed(q.trim());
+      const res = await fetch("/api/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: q.trim(), embedding, limit: 20 }),
+      });
       const data = await res.json();
       setResults(data.results);
       setHasSearched(true);
     } finally {
       setSearching(false);
     }
-  }, []);
+  }, [embed]);
 
-  // Auto-search from URL param on mount
+  // Auto-search from URL ?q= param once model is ready (not on mount)
   useEffect(() => {
-    if (query) doSearch(query);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    if (embeddingReady && query && !hasAutoSearched.current) {
+      hasAutoSearched.current = true;
+      doSearch(query);
+    }
+  }, [embeddingReady, query, doSearch]);
 
   function handleChange(value: string) {
     setQuery(value);
@@ -100,7 +120,22 @@ export function SearchView() {
           value={query}
           onChange={handleChange}
           isLoading={searching}
+          disabled={!embeddingReady}
         />
+        {progressVisible && (
+          <div
+            className="mt-2 transition-opacity duration-300"
+            style={{ opacity: embeddingReady ? 0 : 1 }}
+          >
+            <div className="h-1 w-full rounded-full bg-neutral-100 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-neutral-400 transition-[width] duration-300 ease-out"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <p className="mt-1.5 text-xs text-neutral-400">Preparing search...</p>
+          </div>
+        )}
       </section>
 
       <section id="results" className="space-y-3 pb-16">

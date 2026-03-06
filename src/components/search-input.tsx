@@ -6,10 +6,12 @@ export function SearchInput({
   value,
   onChange,
   isLoading,
+  disabled = false,
 }: {
   value: string;
   onChange: (value: string) => void;
   isLoading: boolean;
+  disabled?: boolean;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -37,7 +39,8 @@ export function SearchInput({
         placeholder='Paste a hadith to verify — e.g. "The reward of deeds depends upon the intentions"'
         aria-label="Search hadith text"
         rows={2}
-        className="w-full resize-none rounded-lg border border-neutral-200 bg-white px-4 py-3.5 text-[15px] leading-relaxed text-neutral-800 placeholder:text-neutral-400 focus:border-neutral-400 focus:outline-none transition-colors"
+        disabled={disabled}
+        className={`w-full resize-none rounded-lg border border-neutral-200 bg-white px-4 py-3.5 text-[15px] leading-relaxed text-neutral-800 placeholder:text-neutral-400 focus:border-neutral-400 focus:outline-none transition-colors ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
       />
       {isLoading && (
         <div className="absolute right-3 top-3.5">
