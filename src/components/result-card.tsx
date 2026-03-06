@@ -106,7 +106,10 @@ export function ResultCard({
 
       {hadith.graded_by && (
         <p className="text-xs text-neutral-500 mt-3">
-          {hadith.graded_by}
+          Graded by {hadith.graded_by}
+          {hadith.graded_by === "Darussalam" && (
+            <span className="text-neutral-400"> (publisher, not a hadith scholar)</span>
+          )}
         </p>
       )}
     </Link>

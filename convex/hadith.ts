@@ -223,6 +223,40 @@ export const clearAll = mutation({
   },
 });
 
+// List hadith IDs + numbers for a collection (paginated, used by grading enrichment script)
+export const listBySlug = query({
+  args: { slug: v.string(), offset: v.optional(v.number()), limit: v.optional(v.number()) },
+  handler: async (ctx, { slug, offset: off, limit: lim }) => {
+    const offset = off ?? 0;
+    const limit = lim ?? 500;
+    const docs = await ctx.db
+      .query("hadith")
+      .withIndex("by_collection_order", (q) =>
+        q.eq("collection_slug", slug).gte("order", offset).lt("order", offset + limit)
+      )
+      .collect();
+    return docs.map((d) => ({ _id: d._id, hadith_number: d.hadith_number, order: d.order }));
+  },
+});
+
+// Patch gradings onto existing hadith documents
+export const patchGradings = mutation({
+  args: {
+    patches: v.array(
+      v.object({
+        id: v.id("hadith"),
+        grading: v.string(),
+        graded_by: v.string(),
+      })
+    ),
+  },
+  handler: async (ctx, { patches }) => {
+    for (const { id, grading, graded_by } of patches) {
+      await ctx.db.patch(id, { grading, graded_by });
+    }
+  },
+});
+
 // Patch embeddings onto existing hadith documents
 export const patchEmbeddings = mutation({
   args: {

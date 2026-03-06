@@ -96,10 +96,15 @@ export function HadithDetail({
               title={
                 hadith.graded_by.includes("consensus")
                   ? "All major Islamic scholars agree on the authenticity of hadith in this collection"
-                  : undefined
+                  : hadith.graded_by === "Darussalam"
+                    ? "Darussalam is a publisher, not a hadith scholar"
+                    : undefined
               }
             >
-              {hadith.graded_by}
+              Graded by {hadith.graded_by}
+              {hadith.graded_by === "Darussalam" && (
+                <span className="text-neutral-400"> (publisher)</span>
+              )}
             </span>
           )}
         </div>

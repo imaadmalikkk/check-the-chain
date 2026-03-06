@@ -138,6 +138,49 @@ export function SearchView() {
         )}
       </section>
 
+      {!query && !hasSearched && (
+        <section className="mb-8 space-y-6">
+          <div>
+            <p className="text-xs text-neutral-400 mb-2">Try an example —</p>
+            <div className="flex flex-wrap gap-2">
+              {[
+                "The reward of deeds depends upon the intentions",
+                "None of you truly believes until he loves for his brother what he loves for himself",
+                "The best of you are those who are best to their families",
+              ].map((example) => (
+                <button
+                  key={example}
+                  onClick={() => handleChange(example)}
+                  disabled={!embeddingReady}
+                  className="rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-600 hover:border-neutral-300 hover:text-neutral-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {example}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs text-neutral-400 mb-3">How it works</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {[
+                { step: "1", title: "Paste", desc: "Enter a hadith you've seen or heard" },
+                { step: "2", title: "Search", desc: "We match it against 47,000+ authenticated narrations" },
+                { step: "3", title: "Verify", desc: "See the source, grading, and chain of narrators" },
+              ].map((item) => (
+                <div key={item.step} className="flex gap-2.5">
+                  <span className="text-sm font-medium text-neutral-300">{item.step}</span>
+                  <div>
+                    <p className="text-sm font-medium text-neutral-700">{item.title}</p>
+                    <p className="text-xs text-neutral-500 leading-relaxed">{item.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       <section id="results" className="space-y-3 pb-16">
         {results.length > 0 && (
           <FilterChips
