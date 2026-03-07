@@ -21,6 +21,7 @@ export function SearchView() {
   const [activeGradings, setActiveGradings] = useState<Set<Grading>>(new Set());
   const { embed, ready: embeddingReady, progress } = useEmbedding();
   const hasAutoSearched = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   // Once ready, fade out progress bar then enable search
   useEffect(() => {
@@ -36,19 +37,31 @@ export function SearchView() {
       setHasSearched(false);
       return;
     }
+
+    // Abort any in-flight search
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setSearching(true);
     try {
       const embedding = await embed(q.trim());
+      if (controller.signal.aborted) return;
       const res = await fetch("/api/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: q.trim(), embedding, limit: 20 }),
+        signal: controller.signal,
       });
       const data = await res.json();
+      if (controller.signal.aborted) return;
       setResults(data.results);
       setHasSearched(true);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      console.error("Search failed:", err);
     } finally {
-      setSearching(false);
+      if (!controller.signal.aborted) setSearching(false);
     }
   }, [embed]);
 
