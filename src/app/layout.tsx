@@ -40,9 +40,6 @@ export const metadata: Metadata = {
   },
 };
 
-// Static string literal for redirecting old hash-based URLs to new paths.
-// This is NOT user input — it's a hardcoded redirect script for backwards compatibility.
-const HASH_REDIRECT_SCRIPT = `(function(){var h=location.hash;if(h&&h.length>2){var p=h.replace(/^#\\/?/,"");if(p){location.replace("/"+p+location.search)}}})()`;
 
 export default function RootLayout({
   children,
@@ -51,9 +48,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: HASH_REDIRECT_SCRIPT }} />
-      </head>
+      <head />
       <body className={`${inter.variable} ${notoNaskhArabic.variable} antialiased`}>
         <Providers>
         <div className="min-h-screen flex flex-col">
