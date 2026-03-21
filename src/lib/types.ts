@@ -12,6 +12,9 @@ export interface Hadith {
   grading: string;
   graded_by: string;
   isnad_narrators?: string[];
+  chapter_id?: number;
+  chapter_english?: string;
+  hadith_in_chapter?: number;
 }
 
 export interface SearchResult {

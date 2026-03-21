@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { collectionUrl, isnadUrl } from "@/lib/urls";
+import { collectionUrl, chapterUrl, isnadUrl } from "@/lib/urls";
 import { GradingBadge } from "@/components/grading-badge";
 import { ShareCardPreview } from "@/components/share-card-preview";
 import { renderShareCard } from "@/lib/share-card";
+import type { ShareCardData } from "@/lib/share-card";
 import type { Hadith } from "@/lib/types";
 import type { CollectionMeta } from "@/lib/collections";
 
@@ -20,6 +21,7 @@ export function HadithDetail({
 }) {
   const [copied, setCopied] = useState<"link" | "text" | null>(null);
   const [cardBlob, setCardBlob] = useState<Blob | null>(null);
+  const [cardData, setCardData] = useState<ShareCardData | null>(null);
   const [cardLoading, setCardLoading] = useState(false);
 
   const reference = `${collection.name} ${hadith.hadith_number}`;
@@ -60,14 +62,16 @@ export function HadithDetail({
     if (cardLoading) return;
     setCardLoading(true);
     try {
-      const blob = await renderShareCard({
+      const data: ShareCardData = {
         english: hadith.english,
         narrator: hadith.narrator,
         reference,
-        grading: (hadith.grading || "Unknown") as Parameters<typeof renderShareCard>[0]["grading"],
+        grading: (hadith.grading || "Unknown") as ShareCardData["grading"],
         gradedBy: hadith.graded_by,
         arabicText: hadith.arabic || undefined,
-      });
+      };
+      const blob = await renderShareCard(data);
+      setCardData(data);
       setCardBlob(blob);
     } finally {
       setCardLoading(false);
@@ -77,15 +81,24 @@ export function HadithDetail({
   return (
     <div className="pt-12 sm:pt-16 pb-16">
       <Link
-        href={collectionUrl(collection.slug)}
+        href={hadith.chapter_id != null ? chapterUrl(collection.slug, hadith.chapter_id) : collectionUrl(collection.slug)}
         className="text-sm text-neutral-500 hover:text-neutral-700 transition-colors"
       >
-        &larr; {collection.name}
+        &larr; {hadith.chapter_english || collection.name}
       </Link>
 
-      <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-neutral-900 mt-4 mb-3">
+      <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-neutral-900 mt-4 mb-1">
         {reference}
       </h1>
+      {hadith.chapter_id != null && hadith.chapter_english && (
+        <p className="text-sm text-neutral-500 mb-3">
+          Book {hadith.chapter_id}
+          {hadith.hadith_in_chapter != null && `, Hadith ${hadith.hadith_in_chapter}`}
+          {" — "}
+          {hadith.chapter_english}
+        </p>
+      )}
+      {!(hadith.chapter_id != null && hadith.chapter_english) && <div className="mb-3" />}
 
       {hadith.grading && hadith.grading !== "Unknown" && (
         <div className="mb-6">
@@ -161,11 +174,13 @@ export function HadithDetail({
         )}
       </div>
 
-      {cardBlob && (
+      {cardBlob && cardData && (
         <ShareCardPreview
           blob={cardBlob}
+          data={cardData}
+          hasArabic={!!hadith.arabic}
           filename={`${collection.slug}-${hadith.hadith_number}.png`}
-          onClose={() => setCardBlob(null)}
+          onClose={() => { setCardBlob(null); setCardData(null); }}
         />
       )}
     </div>

@@ -235,6 +235,12 @@ async function main() {
     );
     if (cleared > 0) console.log(`  Cleared ${cleared} count docs`);
   } while (cleared > 0);
+  do {
+    cleared = await withRetry(() =>
+      client.mutation(api.hadith.clearAll, { table: "chapters" })
+    );
+    if (cleared > 0) console.log(`  Cleared ${cleared} chapter docs`);
+  } while (cleared > 0);
   console.log("Data cleared.\n");
 
   const dirs = ["the_9_books", "other_books", "forties"];
@@ -255,6 +261,9 @@ async function main() {
     grading: string;
     graded_by: string;
     isnad_narrators?: string[];
+    chapter_id?: number;
+    chapter_english?: string;
+    hadith_in_chapter?: number;
   };
 
   let batch: HadithDoc[] = [];
@@ -287,6 +296,16 @@ async function main() {
       const collectionSlug = slugFromName(collectionName);
       const isSahih = SAHIH_COLLECTIONS.has(collectionKey);
 
+      // Build chapter lookup (skip chapters with null IDs)
+      const chapterMap = new Map<number, { english: string; arabic: string }>();
+      for (const ch of raw.chapters) {
+        if (ch.id == null) continue;
+        chapterMap.set(ch.id, { english: ch.english, arabic: ch.arabic });
+      }
+
+      // Track hadith position within each chapter for "Book X, Hadith Y" references
+      const chapterPositionCounters = new Map<number, number>();
+
       for (const h of raw.hadiths) {
         const englishText = cleanText(h.english.text);
         if (!englishText) continue;
@@ -300,6 +319,14 @@ async function main() {
         const chain = parseIsnad(h.arabic);
         if (chain) isnadCount++;
 
+        const hasChapter = h.chapterId != null;
+        const chapterInfo = hasChapter ? chapterMap.get(h.chapterId) : undefined;
+        let posInChapter: number | undefined;
+        if (hasChapter) {
+          posInChapter = (chapterPositionCounters.get(h.chapterId) ?? 0) + 1;
+          chapterPositionCounters.set(h.chapterId, posInChapter);
+        }
+
         const doc: HadithDoc = {
           collection: collectionName,
           collection_slug: collectionSlug,
@@ -311,6 +338,11 @@ async function main() {
           grading,
           graded_by: gradedBy,
           ...(chain ? { isnad_narrators: chain } : {}),
+          ...(hasChapter ? {
+            chapter_id: h.chapterId,
+            chapter_english: chapterInfo?.english ?? "",
+            hadith_in_chapter: posInChapter,
+          } : {}),
         };
 
         batch.push(doc);
@@ -322,7 +354,24 @@ async function main() {
         }
       }
 
-      console.log(`\nProcessed: ${collectionName} (${collectionSlug})`);
+      // Insert chapters for this collection (skip chapters with null IDs)
+      const chapterDocs = raw.chapters
+        .filter((ch) => ch.id != null)
+        .map((ch, idx) => ({
+          collection_slug: collectionSlug,
+          chapter_id: ch.id,
+          name_english: ch.english,
+          name_arabic: ch.arabic,
+          hadith_count: chapterPositionCounters.get(ch.id) ?? 0,
+          order: idx,
+        }));
+      if (chapterDocs.length > 0) {
+        await withRetry(() =>
+          client.mutation(api.hadith.insertChaptersBatch, { chapters: chapterDocs })
+        );
+      }
+
+      console.log(`\nProcessed: ${collectionName} (${collectionSlug}) — ${chapterDocs.length} chapters`);
     }
   }
 

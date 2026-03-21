@@ -1,5 +1,7 @@
 import type { Grading } from "@/lib/types";
 
+export type ShareCardLanguage = "english" | "arabic" | "both";
+
 export interface ShareCardData {
   english: string;
   narrator: string;
@@ -7,6 +9,7 @@ export interface ShareCardData {
   grading: Grading;
   gradedBy: string;
   arabicText?: string;
+  language?: ShareCardLanguage;
 }
 
 const CARD_SIZE = 1080;
@@ -75,87 +78,91 @@ export async function renderShareCard(data: ShareCardData): Promise<Blob> {
 
   const footerSpace = 120;
   const maxContentY = CARD_SIZE - footerSpace;
-  const hasArabic = !!data.arabicText;
+  const lang = data.language || "both";
+  const showArabic = !!data.arabicText && lang !== "english";
+  const showEnglish = lang !== "arabic";
 
-  // Arabic gets at most 30% of available space, English gets the rest
   const availableSpace = maxContentY - PAD;
-  const maxArabicHeight = hasArabic ? availableSpace * 0.3 : 0;
 
-  // Fit Arabic into its budget
-  let arabicLines: string[] = [];
-  let arabicFontSize = 28;
-  let arabicLineHeight = 42;
-  if (hasArabic) {
-    for (let size = 28; size >= 16; size -= 2) {
+  // Arabic section
+  if (showArabic) {
+    const maxArabicHeight = showEnglish ? availableSpace * 0.3 : availableSpace;
+    const maxArabicFontSize = showEnglish ? 28 : 48;
+    const minArabicFontSize = showEnglish ? 16 : 24;
+    const maxArabicLines = showEnglish ? 3 : Infinity;
+
+    let arabicLines: string[] = [];
+    let arabicFontSize = maxArabicFontSize;
+    let arabicLineHeight = maxArabicFontSize * 1.6;
+
+    for (let size = maxArabicFontSize; size >= minArabicFontSize; size -= 2) {
       ctx.font = `${size}px ${ARABIC_FONT}`;
       const lines = wrapText(ctx, data.arabicText!, contentWidth);
       const lh = size * 1.6;
-      // Cap at 3 lines max
-      const capped = lines.slice(0, 3);
+      const capped = maxArabicLines === Infinity ? lines : lines.slice(0, maxArabicLines);
       if (capped.length * lh <= maxArabicHeight) {
         arabicLines = capped;
         arabicFontSize = size;
         arabicLineHeight = lh;
-        if (lines.length > 3) {
-          arabicLines[2] += "...";
+        if (lines.length > capped.length) {
+          arabicLines[arabicLines.length - 1] += "...";
         }
         break;
       }
     }
-  }
 
-  // Render Arabic
-  if (arabicLines.length > 0) {
-    ctx.save();
-    ctx.direction = "rtl";
-    ctx.textAlign = "right";
-    ctx.font = `${arabicFontSize}px ${ARABIC_FONT}`;
-    ctx.fillStyle = MUTED;
+    if (arabicLines.length > 0) {
+      ctx.save();
+      ctx.direction = "rtl";
+      ctx.textAlign = "right";
+      ctx.font = `${arabicFontSize}px ${ARABIC_FONT}`;
+      ctx.fillStyle = showEnglish ? MUTED : TEXT_COLOR;
 
-    for (const line of arabicLines) {
-      y += arabicLineHeight;
-      ctx.fillText(line, CARD_SIZE - PAD, y);
-    }
-    ctx.restore();
-    y += 24;
-  }
-
-  // Fit English into remaining space
-  const englishBudget = maxContentY - y;
-  let bestSize = 22;
-  let bestLines: string[] = [];
-
-  for (let size = 56; size >= 22; size -= 2) {
-    ctx.font = `400 ${size}px ${ENGLISH_FONT}`;
-    const lines = wrapText(ctx, `\u201C${data.english}\u201D`, contentWidth);
-    const lh = size * 1.45;
-    if (lines.length * lh <= englishBudget) {
-      bestSize = size;
-      bestLines = lines;
-      break;
+      for (const line of arabicLines) {
+        y += arabicLineHeight;
+        ctx.fillText(line, CARD_SIZE - PAD, y);
+      }
+      ctx.restore();
+      y += 24;
     }
   }
 
-  // Truncate if still overflowing at min size
-  if (bestLines.length === 0) {
-    ctx.font = `400 22px ${ENGLISH_FONT}`;
-    bestLines = wrapText(ctx, `\u201C${data.english}\u201D`, contentWidth);
-    bestSize = 22;
-  }
-  const lineHeight = bestSize * 1.45;
-  const maxLines = Math.floor(englishBudget / lineHeight);
-  if (bestLines.length > maxLines && maxLines > 0) {
-    bestLines = bestLines.slice(0, maxLines);
-    bestLines[maxLines - 1] = bestLines[maxLines - 1].replace(/\s*\u201D$/, "...\u201D");
-  }
+  // English section
+  if (showEnglish) {
+    const englishBudget = maxContentY - y;
+    let bestSize = 22;
+    let bestLines: string[] = [];
 
-  // Render English
-  ctx.textAlign = "left";
-  ctx.fillStyle = TEXT_COLOR;
-  ctx.font = `400 ${bestSize}px ${ENGLISH_FONT}`;
-  for (const line of bestLines) {
-    y += lineHeight;
-    ctx.fillText(line, PAD, y);
+    for (let size = 56; size >= 22; size -= 2) {
+      ctx.font = `400 ${size}px ${ENGLISH_FONT}`;
+      const lines = wrapText(ctx, `\u201C${data.english}\u201D`, contentWidth);
+      const lh = size * 1.45;
+      if (lines.length * lh <= englishBudget) {
+        bestSize = size;
+        bestLines = lines;
+        break;
+      }
+    }
+
+    if (bestLines.length === 0) {
+      ctx.font = `400 22px ${ENGLISH_FONT}`;
+      bestLines = wrapText(ctx, `\u201C${data.english}\u201D`, contentWidth);
+      bestSize = 22;
+    }
+    const lineHeight = bestSize * 1.45;
+    const maxLines = Math.floor(englishBudget / lineHeight);
+    if (bestLines.length > maxLines && maxLines > 0) {
+      bestLines = bestLines.slice(0, maxLines);
+      bestLines[maxLines - 1] = bestLines[maxLines - 1].replace(/\s*\u201D$/, "...\u201D");
+    }
+
+    ctx.textAlign = "left";
+    ctx.fillStyle = TEXT_COLOR;
+    ctx.font = `400 ${bestSize}px ${ENGLISH_FONT}`;
+    for (const line of bestLines) {
+      y += lineHeight;
+      ctx.fillText(line, PAD, y);
+    }
   }
 
   // Divider

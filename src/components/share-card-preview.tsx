@@ -1,14 +1,21 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { renderShareCard } from "@/lib/share-card";
+import type { ShareCardData, ShareCardLanguage } from "@/lib/share-card";
 
 interface ShareCardPreviewProps {
   blob: Blob;
+  data: ShareCardData;
+  hasArabic: boolean;
   filename: string;
   onClose: () => void;
 }
 
-export function ShareCardPreview({ blob, filename, onClose }: ShareCardPreviewProps) {
+export function ShareCardPreview({ blob: initialBlob, data, hasArabic, filename, onClose }: ShareCardPreviewProps) {
+  const [blob, setBlob] = useState(initialBlob);
+  const [language, setLanguage] = useState<ShareCardLanguage>("both");
+  const [regenerating, setRegenerating] = useState(false);
   const url = useMemo(() => URL.createObjectURL(blob), [blob]);
   const [copied, setCopied] = useState(false);
 
@@ -32,6 +39,18 @@ export function ShareCardPreview({ blob, filename, onClose }: ShareCardPreviewPr
     };
   }, [handleKeyDown]);
 
+  async function switchLanguage(lang: ShareCardLanguage) {
+    if (lang === language) return;
+    setLanguage(lang);
+    setRegenerating(true);
+    try {
+      const newBlob = await renderShareCard({ ...data, language: lang });
+      setBlob(newBlob);
+    } finally {
+      setRegenerating(false);
+    }
+  }
+
   function download() {
     const a = document.createElement("a");
     a.href = url;
@@ -47,10 +66,15 @@ export function ShareCardPreview({ blob, filename, onClose }: ShareCardPreviewPr
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Fallback: download if clipboard write not supported
       download();
     }
   }
+
+  const langOptions: { value: ShareCardLanguage; label: string }[] = [
+    { value: "english", label: "English" },
+    { value: "arabic", label: "Arabic" },
+    { value: "both", label: "Both" },
+  ];
 
   return (
     <div
@@ -67,8 +91,26 @@ export function ShareCardPreview({ blob, filename, onClose }: ShareCardPreviewPr
         <img
           src={url}
           alt="Share card preview"
-          className="w-full rounded-t-lg"
+          className={`w-full rounded-t-lg transition-opacity ${regenerating ? "opacity-50" : ""}`}
         />
+        {hasArabic && (
+          <div className="flex gap-1 px-4 pt-3">
+            {langOptions.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => switchLanguage(opt.value)}
+                disabled={regenerating}
+                className={`text-xs px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
+                  language === opt.value
+                    ? "bg-neutral-900 text-white"
+                    : "text-neutral-500 hover:text-neutral-700 border border-neutral-200"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="flex gap-3 p-4">
           <button
             onClick={download}

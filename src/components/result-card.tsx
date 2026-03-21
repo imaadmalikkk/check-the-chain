@@ -90,9 +90,17 @@ export function ResultCard({
         </button>
       </div>
 
-      <h3 className="text-sm mb-1.5 font-medium text-neutral-700">
+      <h3 className="text-sm mb-0.5 font-medium text-neutral-700">
         {reference}
       </h3>
+      {hadith.chapter_id != null && hadith.chapter_english && (
+        <p className="text-xs text-neutral-400 mb-1.5">
+          Book {hadith.chapter_id}
+          {hadith.hadith_in_chapter != null && `, Hadith ${hadith.hadith_in_chapter}`}
+          {" · "}
+          {hadith.chapter_english}
+        </p>
+      )}
 
       {hadith.narrator && (
         <p className="text-sm text-neutral-500 mb-2 italic">

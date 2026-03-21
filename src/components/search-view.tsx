@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { SearchInput } from "@/components/search-input";
 import { ResultCard } from "@/components/result-card";
 import { FilterChips } from "@/components/filter-chips";
@@ -10,7 +11,6 @@ import type { SearchResult, Grading } from "@/lib/types";
 
 export function SearchView() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const [query, setQuery] = useState(searchParams.get("q") || "");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -19,6 +19,8 @@ export function SearchView() {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [activeCollections, setActiveCollections] = useState<Set<string>>(new Set());
   const [activeGradings, setActiveGradings] = useState<Set<Grading>>(new Set());
+  const [page, setPage] = useState(0);
+  const RESULTS_PER_PAGE = 20;
   const { embed, ready: embeddingReady, progress } = useEmbedding();
   const hasAutoSearched = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -50,7 +52,7 @@ export function SearchView() {
       const res = await fetch("/api/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: q.trim(), embedding, limit: 20 }),
+        body: JSON.stringify({ query: q.trim(), embedding, limit: 100 }),
         signal: controller.signal,
       });
       const data = await res.json();
@@ -79,11 +81,12 @@ export function SearchView() {
     const url = value.trim()
       ? `?q=${encodeURIComponent(value.trim())}`
       : "/";
-    router.replace(url, { scroll: false });
+    window.history.replaceState(null, "", url);
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
     setActiveCollections(new Set());
     setActiveGradings(new Set());
+    setPage(0);
     debounceRef.current = setTimeout(() => {
       doSearch(value);
     }, 300);
@@ -105,6 +108,7 @@ export function SearchView() {
       else next.add(col);
       return next;
     });
+    setPage(0);
   }
 
   function toggleGrading(g: Grading) {
@@ -114,6 +118,7 @@ export function SearchView() {
       else next.add(g);
       return next;
     });
+    setPage(0);
   }
 
   return (
@@ -122,10 +127,19 @@ export function SearchView() {
         <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-neutral-900">
           Check the Chain
         </h1>
-        <p className="mt-2 text-sm text-neutral-500 leading-relaxed max-w-md">
-          Verify hadith against 47,000+ narrations from
-          Bukhari, Muslim, and 15 other major collections.
+        <p className="mt-2 text-sm text-neutral-500 leading-relaxed max-w-lg">
+          Search by meaning, not just keywords. Paste any hadith and find its
+          source, grading, and chain of narrators across the major collections.
         </p>
+        {!query && !hasSearched && (
+          <div className="flex gap-4 mt-4 text-xs text-neutral-400 font-mono">
+            <span>47,000+ hadith</span>
+            <span className="text-neutral-200">|</span>
+            <span>16 collections</span>
+            <span className="text-neutral-200">|</span>
+            <span>605 chapters</span>
+          </div>
+        )}
       </header>
 
       <section className="mb-8">
@@ -152,14 +166,16 @@ export function SearchView() {
       </section>
 
       {!query && !hasSearched && (
-        <section className="mb-8 space-y-6">
+        <section className="mb-8 space-y-10">
+          {/* Example queries */}
           <div>
             <p className="text-xs text-neutral-400 mb-2">Try an example —</p>
             <div className="flex flex-wrap gap-2">
               {[
                 "The reward of deeds depends upon the intentions",
-                "None of you truly believes until he loves for his brother what he loves for himself",
+                "Whoever believes in Allah and the Last Day should speak good or remain silent",
                 "The best of you are those who are best to their families",
+                "Do not be angry",
               ].map((example) => (
                 <button
                   key={example}
@@ -173,19 +189,77 @@ export function SearchView() {
             </div>
           </div>
 
+          {/* Feature highlights */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+            {[
+              {
+                title: "Search by meaning",
+                desc: "Uses AI to understand what you mean, not just the words you type. Find hadith even with different translations or paraphrasing.",
+              },
+              {
+                title: "Scholarly gradings",
+                desc: "See authentication gradings (Sahih, Hasan, Da'if) with attribution to the scholars who graded them.",
+              },
+              {
+                title: "Chain of narrators",
+                desc: "View the full isnad — the chain of people who transmitted each hadith back to the Prophet (peace be upon him).",
+              },
+              {
+                title: "Share as image",
+                desc: "Generate shareable cards in English, Arabic, or both — ready for social media or messaging.",
+              },
+            ].map((item) => (
+              <div key={item.title}>
+                <p className="text-sm font-medium text-neutral-700">{item.title}</p>
+                <p className="text-xs text-neutral-500 leading-relaxed mt-0.5">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Quick links */}
           <div>
-            <p className="text-xs text-neutral-400 mb-3">How it works</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs text-neutral-400">Browse collections</p>
+              <Link href="/browse" className="text-xs text-neutral-400 hover:text-neutral-600 transition-colors">
+                View all &rarr;
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {[
-                { step: "1", title: "Paste", desc: "Enter a hadith you've seen or heard" },
-                { step: "2", title: "Search", desc: "We match it against 47,000+ authenticated narrations" },
-                { step: "3", title: "Verify", desc: "See the source, grading, and chain of narrators" },
+                { name: "Bukhari", slug: "sahih-al-bukhari" },
+                { name: "Muslim", slug: "sahih-muslim" },
+                { name: "Tirmidhi", slug: "jami-al-tirmidhi" },
+                { name: "Abu Dawud", slug: "sunan-abi-dawud" },
+                { name: "Nasa'i", slug: "sunan-al-nasai" },
+                { name: "Ibn Majah", slug: "sunan-ibn-majah" },
+                { name: "Nawawi 40", slug: "nawawi-40" },
+                { name: "Riyad as-Salihin", slug: "riyad-as-salihin" },
+              ].map((col) => (
+                <Link
+                  key={col.slug}
+                  href={`/browse/${col.slug}`}
+                  className="rounded-lg border border-neutral-300 px-3 py-2.5 text-xs text-neutral-600 hover:border-neutral-400 hover:text-neutral-800 transition-colors text-center"
+                >
+                  {col.name}
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* How it works */}
+          <div className="border-t border-neutral-100 pt-8">
+            <p className="text-xs text-neutral-400 mb-4">How it works</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              {[
+                { step: "1", title: "Paste or type", desc: "Enter any hadith you've seen on social media, in a lecture, or in a book." },
+                { step: "2", title: "Semantic match", desc: "Our AI finds the closest matches by meaning across all 17 collections — even if the wording is different." },
+                { step: "3", title: "Verify the source", desc: "See the exact reference, scholarly grading, full Arabic text, and chain of narrators." },
               ].map((item) => (
-                <div key={item.step} className="flex gap-2.5">
-                  <span className="text-sm font-medium text-neutral-300">{item.step}</span>
+                <div key={item.step} className="flex gap-3">
+                  <span className="text-lg font-semibold text-neutral-200 leading-none">{item.step}</span>
                   <div>
                     <p className="text-sm font-medium text-neutral-700">{item.title}</p>
-                    <p className="text-xs text-neutral-500 leading-relaxed">{item.desc}</p>
+                    <p className="text-xs text-neutral-500 leading-relaxed mt-0.5">{item.desc}</p>
                   </div>
                 </div>
               ))}
@@ -205,9 +279,48 @@ export function SearchView() {
             onToggleGrading={toggleGrading}
           />
         )}
-        {filteredResults.map((r) => (
-          <ResultCard key={r.hadith._id} result={r} query={query} />
-        ))}
+        {(() => {
+          const totalPages = Math.ceil(filteredResults.length / RESULTS_PER_PAGE);
+          const paginatedResults = filteredResults.slice(
+            page * RESULTS_PER_PAGE,
+            (page + 1) * RESULTS_PER_PAGE
+          );
+          return (
+            <>
+              {paginatedResults.map((r) => (
+                <ResultCard key={r.hadith._id} result={r} query={query} />
+              ))}
+
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between pt-4 border-t border-neutral-100">
+                  {page > 0 ? (
+                    <button
+                      onClick={() => setPage(page - 1)}
+                      className="text-sm text-neutral-600 hover:text-neutral-900 transition-colors cursor-pointer"
+                    >
+                      Previous
+                    </button>
+                  ) : (
+                    <span className="text-sm text-neutral-300">Previous</span>
+                  )}
+                  <span className="text-xs text-neutral-400 font-mono">
+                    {page + 1} / {totalPages}
+                  </span>
+                  {page < totalPages - 1 ? (
+                    <button
+                      onClick={() => setPage(page + 1)}
+                      className="text-sm text-neutral-600 hover:text-neutral-900 transition-colors cursor-pointer"
+                    >
+                      Next
+                    </button>
+                  ) : (
+                    <span className="text-sm text-neutral-300">Next</span>
+                  )}
+                </div>
+              )}
+            </>
+          );
+        })()}
 
         {hasSearched && results.length === 0 && !searching && (
           <div className="text-center py-12">

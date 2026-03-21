@@ -53,6 +53,51 @@ export const getCollectionCounts = query({
   },
 });
 
+// Chapter queries
+export const getChaptersByCollection = query({
+  args: { slug: v.string() },
+  handler: async (ctx, { slug }) => {
+    return ctx.db
+      .query("chapters")
+      .withIndex("by_collection", (q) => q.eq("collection_slug", slug))
+      .collect();
+  },
+});
+
+export const getByChapterPaginated = query({
+  args: {
+    slug: v.string(),
+    chapterId: v.number(),
+    page: v.number(),
+    pageSize: v.optional(v.number()),
+  },
+  handler: async (ctx, { slug, chapterId, page, pageSize: ps }) => {
+    const pageSize = ps ?? 50;
+
+    // Get total for this chapter
+    const chapterDoc = await ctx.db
+      .query("chapters")
+      .withIndex("by_collection_chapter", (q) =>
+        q.eq("collection_slug", slug).eq("chapter_id", chapterId)
+      )
+      .unique();
+    const total = chapterDoc?.hadith_count ?? 0;
+
+    // Get all hadith in this chapter (ordered by the collection-wide order)
+    const allInChapter = await ctx.db
+      .query("hadith")
+      .withIndex("by_chapter_order", (q) =>
+        q.eq("collection_slug", slug).eq("chapter_id", chapterId)
+      )
+      .collect();
+
+    const offset = page * pageSize;
+    const hadith = allInChapter.slice(offset, offset + pageSize);
+
+    return { hadith, total, chapter: chapterDoc };
+  },
+});
+
 // FTS-only search (used as fallback and one leg of hybrid)
 export const searchFts = query({
   args: { query: v.string(), limit: v.optional(v.number()) },
@@ -93,7 +138,7 @@ export const hybridSearch = action({
   handler: async (ctx, { embedding, query: q, limit: lim }): Promise<
     Array<{ hadith: Record<string, unknown>; score: number }>
   > => {
-    const limit = lim ?? 20;
+    const limit = lim ?? 100;
     const fetchLimit = limit * 2;
 
     // Run vector search and FTS separately (avoid Promise.all inference issues)
@@ -189,6 +234,9 @@ export const insertBatch = mutation({
         grading: v.string(),
         graded_by: v.string(),
         isnad_narrators: v.optional(v.array(v.string())),
+        chapter_id: v.optional(v.number()),
+        chapter_english: v.optional(v.string()),
+        hadith_in_chapter: v.optional(v.number()),
       })
     ),
   },
@@ -213,7 +261,7 @@ export const insertCollectionCounts = mutation({
 });
 
 export const clearAll = mutation({
-  args: { table: v.union(v.literal("hadith"), v.literal("collection_counts")) },
+  args: { table: v.union(v.literal("hadith"), v.literal("collection_counts"), v.literal("chapters")) },
   handler: async (ctx, { table }) => {
     const docs = await ctx.db.query(table).take(500);
     for (const doc of docs) {
@@ -253,6 +301,46 @@ export const patchGradings = mutation({
   handler: async (ctx, { patches }) => {
     for (const { id, grading, graded_by } of patches) {
       await ctx.db.patch(id, { grading, graded_by });
+    }
+  },
+});
+
+// Insert chapters in batch
+export const insertChaptersBatch = mutation({
+  args: {
+    chapters: v.array(
+      v.object({
+        collection_slug: v.string(),
+        chapter_id: v.number(),
+        name_english: v.string(),
+        name_arabic: v.string(),
+        hadith_count: v.number(),
+        order: v.number(),
+      })
+    ),
+  },
+  handler: async (ctx, { chapters }) => {
+    for (const ch of chapters) {
+      await ctx.db.insert("chapters", ch);
+    }
+  },
+});
+
+// Patch chapter fields onto existing hadith documents
+export const patchChapterFields = mutation({
+  args: {
+    patches: v.array(
+      v.object({
+        id: v.id("hadith"),
+        chapter_id: v.number(),
+        chapter_english: v.string(),
+        hadith_in_chapter: v.number(),
+      })
+    ),
+  },
+  handler: async (ctx, { patches }) => {
+    for (const { id, chapter_id, chapter_english, hadith_in_chapter } of patches) {
+      await ctx.db.patch(id, { chapter_id, chapter_english, hadith_in_chapter });
     }
   },
 });

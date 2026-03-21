@@ -13,3 +13,7 @@ export function browseUrl(): string {
 export function isnadUrl(slug: string, number: string): string {
   return `/isnad/${slug}/${number}`;
 }
+
+export function chapterUrl(slug: string, chapterId: number): string {
+  return `/browse/${slug}/${chapterId}`;
+}
