@@ -53,9 +53,9 @@ export default async function CollectionPage({
             <Link
               key={h._id}
               href={hadithUrl(slug, h.hadith_number)}
-              className="flex items-start gap-3 rounded-lg px-3 py-3 hover:bg-neutral-50 transition-colors"
+              className="flex items-start gap-2 sm:gap-3 rounded-lg px-1 sm:px-3 py-3 hover:bg-neutral-50 transition-colors"
             >
-              <span className="text-xs text-neutral-400 font-mono w-10 shrink-0 pt-0.5 text-right">
+              <span className="text-xs text-neutral-400 font-mono w-6 sm:w-10 shrink-0 pt-0.5 text-right">
                 {h.hadith_number}
               </span>
               <div className="flex-1 min-w-0">
