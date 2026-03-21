@@ -33,6 +33,14 @@ export function SearchView() {
     }
   }, [embeddingReady]);
 
+  // Clean up debounce timer and in-flight requests on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      abortRef.current?.abort();
+    };
+  }, []);
+
   const doSearch = useCallback(async (q: string) => {
     if (!q.trim() || q.trim().length < 3) {
       setResults([]);

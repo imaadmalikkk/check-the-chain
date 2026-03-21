@@ -66,6 +66,7 @@ function getWorker(): Worker {
     if (type === "ready") {
       state.progress = 100;
       state.ready = true;
+      state.fileProgress.clear();
       notify();
       return;
     }

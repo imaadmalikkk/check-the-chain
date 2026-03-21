@@ -2,6 +2,8 @@ import { pipeline } from "@huggingface/transformers";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let pipe: any = null;
+let searchCount = 0;
+const MAX_SEARCHES_BEFORE_RESET = 20;
 
 async function getPipeline() {
   if (!pipe) {
@@ -36,6 +38,17 @@ self.onmessage = async (e: MessageEvent) => {
       // Free WASM tensor memory to prevent OOM on repeated searches
       if (typeof output.dispose === "function") output.dispose();
       self.postMessage({ type: "result", id, embedding });
+
+      // Periodically reset the pipeline to reclaim WASM heap memory.
+      // The ONNX runtime WASM heap grows but never shrinks — disposing
+      // the pipeline forces a fresh allocation. Model files are cached
+      // by the browser so re-init is fast (~1-2s, not a full download).
+      searchCount++;
+      if (searchCount >= MAX_SEARCHES_BEFORE_RESET) {
+        if (typeof pipe.dispose === "function") pipe.dispose();
+        pipe = null;
+        searchCount = 0;
+      }
     } catch (err) {
       self.postMessage({ type: "error", id, error: String(err) });
     }

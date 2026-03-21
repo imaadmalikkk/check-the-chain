@@ -197,8 +197,10 @@ export const hybridSearch = action({
     for (const [id, score] of ranked) {
       const hadith = hadithMap.get(id);
       if (hadith) {
+        // Strip embedding vectors from response — they're 3KB each and not needed client-side
+        const { embedding: _, ...hadithWithoutEmbedding } = hadith as Record<string, unknown>;
         results.push({
-          hadith,
+          hadith: hadithWithoutEmbedding,
           score: Math.round((score / maxScore) * 100),
         });
       }
