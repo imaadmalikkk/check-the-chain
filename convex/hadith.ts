@@ -98,6 +98,28 @@ export const getByChapterPaginated = query({
   },
 });
 
+// Hadith of the Day — deterministic daily pick from Bukhari
+export const getHadithOfTheDay = query({
+  args: {},
+  handler: async (ctx) => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 0);
+    const dayOfYear = Math.floor((now.getTime() - start.getTime()) / 86400000);
+    const index = (now.getFullYear() * 366 + dayOfYear) % 7276;
+
+    const hadith = await ctx.db
+      .query("hadith")
+      .withIndex("by_collection_order", (q) =>
+        q.eq("collection_slug", "sahih-al-bukhari").gte("order", index).lt("order", index + 1)
+      )
+      .first();
+
+    if (!hadith) return null;
+    const { embedding: _, ...withoutEmbedding } = hadith;
+    return withoutEmbedding;
+  },
+});
+
 // FTS-only search (used as fallback and one leg of hybrid)
 export const searchFts = query({
   args: { query: v.string(), limit: v.optional(v.number()) },

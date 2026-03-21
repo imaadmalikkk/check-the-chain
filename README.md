@@ -1,14 +1,23 @@
 # Check the Chain
 
-Verify hadith authenticity against 47,000+ narrations from Bukhari, Muslim, and 15 other major collections.
+Verify hadith authenticity against 47,000+ narrations from Bukhari, Muslim, and 14 other major collections.
 
 ---
 
 ## What it does
 
-Type a hadith — or even a rough description of one — and Check the Chain finds matching narrations across 17 classical collections. Results include the source, book, chapter, hadith number, and grading where available.
+Type a hadith — or even a rough description of one — and Check the Chain finds matching narrations across 16 classical collections. Results include the source, book, chapter, hadith number, and grading where available.
 
 Search is powered by a local AI model that runs in your browser using [Transformers.js](https://huggingface.co/docs/transformers.js) for semantic matching, alongside keyword search for fast exact lookups.
+
+## Features
+
+- **Semantic search** — find hadith by meaning, not just keywords
+- **Book & chapter browsing** — 605 chapters across 16 collections
+- **Scholarly gradings** — Sahih, Hasan, Da'if with scholar attribution
+- **Chain of narrators** — visual isnad visualization
+- **Share cards** — generate images in English, Arabic, or both
+- **Hadith of the Day** — daily curated hadith from Sahih al-Bukhari
 
 ## Collections
 
@@ -20,33 +29,18 @@ Search is powered by a local AI model that runs in your browser using [Transform
 
 ## Running locally
 
-### 1. Get the source data
-
-Download the hadith JSON data into `data/hadith-json/`. The build script expects JSON files at `data/hadith-json/db/by_book/`.
-
-### 2. Install and build
-
-```
+```bash
 npm install
-npm run build:db        # builds SQLite database from source JSON
-npm run build:embeddings # builds semantic search embeddings
-npm run dev             # start dev server
+npm run dev
 ```
 
-The `prebuild` script runs `build:db` and downloads the ML model automatically when you run `npm run build`.
-
-### 3. Production build
-
-```
-npm run build
-npm start
-```
+Requires a [Convex](https://convex.dev) deployment. Set `NEXT_PUBLIC_CONVEX_URL` in `.env.local`.
 
 ## Stack
 
 - [Next.js](https://nextjs.org) with App Router
+- [Convex](https://convex.dev) serverless backend
 - [Transformers.js](https://huggingface.co/docs/transformers.js) for in-browser semantic search
-- [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) for server-side hadith storage and search
 - [Tailwind CSS](https://tailwindcss.com)
 
 ## Disclaimer

@@ -22,7 +22,7 @@ export function FilterChips({
   if (collections.length <= 1 && gradings.length <= 1) return null;
 
   return (
-    <div className="flex flex-wrap gap-2 mb-4">
+    <div className="flex gap-2 mb-4 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
       {collections.map((col) => {
         const active = activeCollections.has(col);
         return (

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Check the Chain** — a Next.js app for verifying hadith authenticity via hybrid semantic + keyword search across 47,000+ hadith from 17 collections. Uses client-side ML embeddings (Transformers.js) with a Convex serverless backend.
+**Check the Chain** — a Next.js app for verifying hadith authenticity via hybrid semantic + keyword search across 47,000+ hadith from 16 collections. Uses client-side ML embeddings (Transformers.js) with a Convex serverless backend.
 
 ## Commands
 

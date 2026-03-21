@@ -25,7 +25,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "Check the Chain",
   description:
-    "Verify hadith authenticity against 47,000+ narrations from Bukhari, Muslim, and 15 other major collections.",
+    "Verify hadith authenticity against 47,000+ narrations from Bukhari, Muslim, and 14 other major collections.",
   openGraph: {
     title: "Check the Chain",
     description:

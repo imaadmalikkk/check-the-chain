@@ -7,7 +7,8 @@ import { SearchInput } from "@/components/search-input";
 import { ResultCard } from "@/components/result-card";
 import { FilterChips } from "@/components/filter-chips";
 import { useEmbedding } from "@/lib/use-embedding";
-import type { SearchResult, Grading } from "@/lib/types";
+import { hadithUrl } from "@/lib/urls";
+import type { SearchResult, Grading, Hadith } from "@/lib/types";
 
 export function SearchView() {
   const searchParams = useSearchParams();
@@ -24,6 +25,7 @@ export function SearchView() {
   const { embed, ready: embeddingReady, progress } = useEmbedding();
   const hasAutoSearched = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
+  const [dailyHadith, setDailyHadith] = useState<Hadith | null>(null);
 
   // Once ready, fade out progress bar then enable search
   useEffect(() => {
@@ -39,6 +41,14 @@ export function SearchView() {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       abortRef.current?.abort();
     };
+  }, []);
+
+  // Fetch Hadith of the Day
+  useEffect(() => {
+    fetch("/api/hadith-of-the-day")
+      .then((res) => res.json())
+      .then((data) => { if (data.hadith) setDailyHadith(data.hadith); })
+      .catch(() => {});
   }, []);
 
   const doSearch = useCallback(async (q: string) => {
@@ -67,6 +77,10 @@ export function SearchView() {
       if (controller.signal.aborted) return;
       setResults(data.results);
       setHasSearched(true);
+      // On mobile, scroll results into view above the keyboard
+      setTimeout(() => {
+        document.getElementById("results")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       console.error("Search failed:", err);
@@ -174,7 +188,25 @@ export function SearchView() {
       </section>
 
       {!query && !hasSearched && (
-        <section className="mb-8 space-y-10">
+        <section className="mb-8 space-y-8">
+          {/* Hadith of the Day */}
+          {dailyHadith && (
+            <Link
+              href={hadithUrl(dailyHadith.collection_slug, dailyHadith.hadith_number)}
+              className="block border border-neutral-200 rounded-lg p-5 hover:border-neutral-300 transition-colors"
+            >
+              <p className="text-xs text-neutral-400 mb-2">Hadith of the Day</p>
+              <p className="text-sm leading-relaxed text-neutral-800">
+                {dailyHadith.english.length > 250
+                  ? dailyHadith.english.slice(0, 250) + "..."
+                  : dailyHadith.english}
+              </p>
+              <p className="text-xs text-neutral-500 mt-3">
+                {dailyHadith.collection} {dailyHadith.hadith_number}
+              </p>
+            </Link>
+          )}
+
           {/* Example queries */}
           <div>
             <p className="text-xs text-neutral-400 mb-2">Try an example —</p>
@@ -197,34 +229,7 @@ export function SearchView() {
             </div>
           </div>
 
-          {/* Feature highlights */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
-            {[
-              {
-                title: "Search by meaning",
-                desc: "Uses AI to understand what you mean, not just the words you type. Find hadith even with different translations or paraphrasing.",
-              },
-              {
-                title: "Scholarly gradings",
-                desc: "See authentication gradings (Sahih, Hasan, Da'if) with attribution to the scholars who graded them.",
-              },
-              {
-                title: "Chain of narrators",
-                desc: "View the full isnad — the chain of people who transmitted each hadith back to the Prophet (peace be upon him).",
-              },
-              {
-                title: "Share as image",
-                desc: "Generate shareable cards in English, Arabic, or both — ready for social media or messaging.",
-              },
-            ].map((item) => (
-              <div key={item.title}>
-                <p className="text-sm font-medium text-neutral-700">{item.title}</p>
-                <p className="text-xs text-neutral-500 leading-relaxed mt-0.5">{item.desc}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Quick links */}
+          {/* Browse collections */}
           <div>
             <div className="flex items-center justify-between mb-3">
               <p className="text-xs text-neutral-400">Browse collections</p>
@@ -232,16 +237,14 @@ export function SearchView() {
                 View all &rarr;
               </Link>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-3 sm:grid-cols-3 gap-2">
               {[
                 { name: "Bukhari", slug: "sahih-al-bukhari" },
                 { name: "Muslim", slug: "sahih-muslim" },
                 { name: "Tirmidhi", slug: "jami-al-tirmidhi" },
                 { name: "Abu Dawud", slug: "sunan-abi-dawud" },
-                { name: "Nasa'i", slug: "sunan-al-nasai" },
-                { name: "Ibn Majah", slug: "sunan-ibn-majah" },
                 { name: "Nawawi 40", slug: "nawawi-40" },
-                { name: "Riyad as-Salihin", slug: "riyad-as-salihin" },
+                { name: "Ibn Majah", slug: "sunan-ibn-majah" },
               ].map((col) => (
                 <Link
                   key={col.slug}
@@ -250,26 +253,6 @@ export function SearchView() {
                 >
                   {col.name}
                 </Link>
-              ))}
-            </div>
-          </div>
-
-          {/* How it works */}
-          <div className="border-t border-neutral-100 pt-8">
-            <p className="text-xs text-neutral-400 mb-4">How it works</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-              {[
-                { step: "1", title: "Paste or type", desc: "Enter any hadith you've seen on social media, in a lecture, or in a book." },
-                { step: "2", title: "Semantic match", desc: "Our AI finds the closest matches by meaning across all 17 collections — even if the wording is different." },
-                { step: "3", title: "Verify the source", desc: "See the exact reference, scholarly grading, full Arabic text, and chain of narrators." },
-              ].map((item) => (
-                <div key={item.step} className="flex gap-3">
-                  <span className="text-lg font-semibold text-neutral-200 leading-none">{item.step}</span>
-                  <div>
-                    <p className="text-sm font-medium text-neutral-700">{item.title}</p>
-                    <p className="text-xs text-neutral-500 leading-relaxed mt-0.5">{item.desc}</p>
-                  </div>
-                </div>
               ))}
             </div>
           </div>
