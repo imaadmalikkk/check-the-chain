@@ -11,13 +11,18 @@ type EmbeddingState = {
   progress: number;
   pending: Map<string, PendingRequest>;
   idCounter: number;
+  searchCount: number;
   fileProgress: Map<string, number>;
   listeners: Set<() => void>;
 };
 
 // Persist on globalThis so the worker survives HMR module re-evaluation.
-// Module-level variables reset on every hot reload — globalThis does not.
 const KEY = "__embedding_worker_state__" as const;
+
+// Terminate and recreate the worker every N searches to reclaim WASM heap memory.
+// WASM linear memory can grow but NEVER shrink within a worker — the only way
+// to free it is to terminate the worker entirely.
+const MAX_SEARCHES_BEFORE_RECYCLE = 10;
 
 function getState(): EmbeddingState {
   const g = globalThis as unknown as Record<string, EmbeddingState>;
@@ -28,6 +33,7 @@ function getState(): EmbeddingState {
       progress: 0,
       pending: new Map(),
       idCounter: 0,
+      searchCount: 0,
       fileProgress: new Map(),
       listeners: new Set(),
     };
@@ -38,6 +44,20 @@ function getState(): EmbeddingState {
 function notify() {
   const s = getState();
   for (const fn of s.listeners) fn();
+}
+
+function recycleWorker() {
+  const s = getState();
+  if (s.worker) {
+    s.worker.terminate();
+    s.worker = null;
+  }
+  s.ready = false;
+  s.progress = 0;
+  s.searchCount = 0;
+  s.fileProgress.clear();
+  // Create a fresh worker immediately
+  getWorker();
 }
 
 function getWorker(): Worker {
@@ -76,6 +96,13 @@ function getWorker(): Worker {
       if (pending) {
         pending.resolve(embedding);
         state.pending.delete(id);
+      }
+
+      // Check if we need to recycle the worker to free WASM memory
+      state.searchCount++;
+      if (state.searchCount >= MAX_SEARCHES_BEFORE_RECYCLE) {
+        recycleWorker();
+        notify();
       }
       return;
     }
@@ -143,13 +170,18 @@ export function useEmbedding() {
   const embed = useCallback((text: string): Promise<number[]> => {
     return new Promise((resolve, reject) => {
       const state = getState();
+      // If worker was recycled and not ready yet, wait for it
       if (!state.worker) {
+        getWorker();
+      }
+      const w = state.worker;
+      if (!w) {
         reject(new Error("Worker not initialized"));
         return;
       }
       const id = String(++state.idCounter);
       state.pending.set(id, { resolve, reject });
-      state.worker.postMessage({ type: "embed", id, text });
+      w.postMessage({ type: "embed", id, text });
     });
   }, []);
 

@@ -29,7 +29,7 @@ export function FilterChips({
           <button
             key={col}
             onClick={() => onToggleCollection(col)}
-            className={`text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
+            className={`text-xs px-2.5 py-1 rounded-md border transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
               active
                 ? "bg-neutral-900 text-white border-neutral-900"
                 : "bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300"
@@ -46,7 +46,7 @@ export function FilterChips({
             <button
               key={g}
               onClick={() => onToggleGrading(g)}
-              className={`text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
+              className={`text-xs px-2.5 py-1 rounded-md border transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
                 active
                   ? "bg-neutral-900 text-white border-neutral-900"
                   : "bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300"
