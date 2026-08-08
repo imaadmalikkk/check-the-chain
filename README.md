@@ -27,21 +27,36 @@ Search is powered by a local AI model that runs in your browser using [Transform
 
 **Forties** — Imam Nawawi's 40, 40 Hadith Qudsi, Shah Waliullah's 40
 
+## Repository layout
+
+```
+apps/web            Next.js app — Convex backend, in-browser semantic search
+apps/ios            Native SwiftUI app, iOS 26+ — fully offline, no backend
+packages/pipeline   Builds the iOS offline artifacts from the Convex corpus
+data/hadith-json    Source corpus (not committed — see below)
+```
+
 ## Running locally
 
 ```bash
 npm install
-npm run dev
+npm run dev        # web
 ```
 
-Requires a [Convex](https://convex.dev) deployment. Set `NEXT_PUBLIC_CONVEX_URL` in `.env.local`.
+Requires a [Convex](https://convex.dev) deployment. Set `NEXT_PUBLIC_CONVEX_URL` in `apps/web/.env.local`.
+
+For iOS:
+
+```bash
+npm run pipeline                    # build the offline SQLite + embeddings + Core ML model
+cd apps/ios && xcodegen generate && open CheckTheChain.xcodeproj
+```
 
 ## Stack
 
-- [Next.js](https://nextjs.org) with App Router
-- [Convex](https://convex.dev) serverless backend
-- [Transformers.js](https://huggingface.co/docs/transformers.js) for in-browser semantic search
-- [Tailwind CSS](https://tailwindcss.com)
+**Web** — [Next.js](https://nextjs.org) App Router, [Convex](https://convex.dev), [Transformers.js](https://huggingface.co/docs/transformers.js), [Tailwind CSS](https://tailwindcss.com)
+
+**iOS** — SwiftUI (iOS 26, Liquid Glass), [GRDB](https://github.com/groue/GRDB.swift) over SQLite FTS5, Core ML MiniLM running on the Neural Engine. The entire 47,000-hadith corpus, its embeddings, and the model ship inside the app — search runs on-device, offline, at no cost.
 
 ## Disclaimer
 

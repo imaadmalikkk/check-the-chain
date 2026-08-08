@@ -4,28 +4,48 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Check the Chain** — a Next.js app for verifying hadith authenticity via hybrid semantic + keyword search across 47,000+ hadith from 16 collections. Uses client-side ML embeddings (Transformers.js) with a Convex serverless backend.
+**Check the Chain** — verify hadith authenticity via hybrid semantic + keyword search across 47,000+ hadith from 16 collections.
+
+This is a monorepo with two products that share one corpus:
+
+| Path | What |
+|---|---|
+| `apps/web` | Next.js app. Convex backend, Transformers.js embeddings in a Web Worker. **Requires network.** |
+| `apps/ios` | Native SwiftUI app, iOS 26+. **Fully offline** — bundled SQLite + Core ML, no backend. |
+| `packages/pipeline` | Builds the iOS offline artifacts from the Convex corpus. |
+| `data/hadith-json` | Source corpus (gitignored, 175MB). |
+
+The iOS app is the primary product. It has no backend by design: zero running cost, instant search, works offline, and none of the WASM/worker memory problems the web app has.
 
 ## Commands
 
 ```bash
-npm run dev       # Start Next.js dev server (Turbopack)
-npm run build     # Production build (includes type checking)
-npm run lint      # ESLint
-npm run start     # Serve production build
+npm install          # installs all workspaces
+npm run dev          # Next.js dev server (apps/web)
+npm run build        # production build + type check (apps/web) — primary web validation
+npm run lint         # ESLint (apps/web)
+npm run pipeline     # build iOS offline artifacts (packages/pipeline)
 ```
 
-No test framework is configured. `npm run build` is the primary validation step.
+iOS:
+```bash
+cd apps/ios && xcodegen generate          # regenerate CheckTheChain.xcodeproj from project.yml
+xcodebuild -scheme CheckTheChain -destination 'platform=iOS Simulator,OS=26.2,name=iPhone 17 Pro' build
+xcodebuild test -scheme HadithKit -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+```
 
-Data pipeline scripts (run with `npx tsx`):
-- `scripts/seed-convex.ts` — Load hadith JSON into Convex
-- `scripts/build-embeddings-convex.ts` — Generate and store 384-dim embeddings
-- `scripts/enrich-gradings.ts` — Enrich with scholarly grading data
+No JS test framework is configured; `npm run build` is the web validation step. The iOS engine has XCTest coverage in `apps/ios/HadithKit/Tests`.
 
-## Architecture
+Data pipeline scripts (run with `npx tsx` from `apps/web`):
+- `scripts/seed-convex.ts` — load hadith JSON into Convex. **Clears the table first**, so it destroys embeddings and gradings — never run it to change one derived field
+- `scripts/build-embeddings-convex.ts` — generate and store 384-dim embeddings
+- `scripts/enrich-gradings.ts` — enrich with scholarly grading data
+- `scripts/reparse-isnad.ts` — re-derive `isnad_narrators` in place from the Arabic already in Convex (`--dry-run` to preview). This is the pattern for any parser change: patch, don't re-seed
+- `scripts/lib/isnad.ts` — the sanad parser, shared by the seed and the re-parse. `npm run test:isnad -w apps/web`
 
-### Search Pipeline
+## apps/web architecture
 
+### Search pipeline
 1. User types query → 300ms debounce
 2. Client-side Web Worker generates embedding via Transformers.js (`Xenova/all-MiniLM-L6-v2`, 384-dim, q8 quantized)
 3. `POST /api/search` sends both query text and embedding vector to Convex
@@ -33,49 +53,77 @@ Data pipeline scripts (run with `npx tsx`):
 5. Client applies collection/grading filters on returned results
 
 ### Layers
-
-- **`src/app/`** — Next.js App Router pages and API routes
+- **`src/app/`** — App Router pages and API routes
 - **`src/components/`** — React client components (`"use client"` where interactive)
 - **`src/lib/`** — Types, hooks, Web Worker, utilities
-- **`convex/`** — Backend schema, queries, mutations, and actions (auto-generates types in `convex/_generated/`)
+- **`convex/`** — Backend schema, queries, mutations, actions (auto-generates `convex/_generated/`)
 - **`scripts/`** — One-off data pipeline scripts (excluded from TS compilation)
-- **`data/hadith-json/`** — Source JSON hadith files organized by book category
 
-### Convex Data Model
+### Convex data model
+Three tables in `convex/schema.ts`:
+- **`hadith`** — indexes: `by_slug_number`, `by_collection_order`, `by_chapter_order`, `search_english` (FTS), `by_embedding` (vector, 384 dims)
+- **`chapters`** — per-collection chapter metadata
+- **`collection_counts`** — per-collection hadith counts
 
-Two tables defined in `convex/schema.ts`:
-- **`hadith`** — Main table with indexes: `by_slug_number` (lookup), `by_collection_order` (pagination), `search_english` (FTS), `by_embedding` (vector search, 384 dims)
-- **`collection_counts`** — Per-collection hadith counts
+### Key patterns
+- **Embedding Worker** (`src/lib/embedding-worker.ts`): ML model in a Web Worker. Requires explicit WASM tensor cleanup to prevent OOM.
+- **URL-synced search state**: `?q=...` keeps search shareable. AbortController cancels in-flight requests.
+- **SSR for detail pages**: `fetchQuery()` from Convex, dynamic OpenGraph metadata.
+- **Hybrid scoring**: vector + FTS merged via RRF — neither alone is sufficient.
 
-### Key Patterns
+## apps/ios architecture
 
-- **Embedding Worker** (`src/lib/embedding-worker.ts`): Runs ML model in Web Worker to avoid blocking main thread. Requires explicit WASM tensor memory cleanup to prevent OOM.
-- **URL-synced search state**: Query param `?q=...` keeps search shareable. AbortController cancels in-flight requests on new input.
-- **SSR for detail pages**: `fetchQuery()` from Convex for server-side rendering with dynamic OpenGraph metadata.
-- **Hybrid search scoring**: Vector similarity and FTS results merged via RRF — neither alone is sufficient.
+Everything runs on-device. No network calls anywhere in the app.
 
-## Path Aliases
+- **`HadithKit`** — local SPM package, the search engine. UI-free and independently testable.
+  - `HadithStore` (actor) — GRDB over the bundled read-only SQLite, FTS5 + `bm25()`
+  - `Embedder` (actor) — Core ML MiniLM; pooling and L2 norm are baked into the model graph, so it returns a ready-to-use unit vector
+  - `VectorIndex` — mmap'd int8 embedding matrix, SIMD dot-product scan over 47k rows
+  - `SearchEngine` — fuses FTS + vector with RRF (K=60), mirroring `apps/web/convex/hadith.ts`
+  - `NarratorName` — renders Arabic isnad entries in English. The corpus has no English narrator field, so this is on-device transliteration: a 330-token lexicon covering 85% of chain tokens, plus rules for the article, `ibn`/`Abu`/`Abd al-`, and a vowel-inserting fallback
+- **`CheckTheChain`** — SwiftUI app target. iOS 26 `TabView` with `Tab(role: .search)`.
+
+**Parity is enforced, not assumed.** `HadithKitTests` replays golden queries captured from the live web app; the offline engine must reproduce the same top-10. Any change to ranking, quantization, or the Core ML conversion must keep that test green.
+
+**Liquid Glass rule:** glass goes on controls floating *above* content (tab bar, search field, filter chips, toolbar buttons) — never behind body text. Result and detail cards are opaque.
+
+All glass is routed through a single `GlassSurface` modifier in `DesignSystem.swift`. This is deliberate: it's the one file an iOS 18 backport would need to touch.
+
+## packages/pipeline
+
+`Convex export → hadith.sqlite + embeddings.bin + MiniLM.mlpackage`, written into `apps/ios/CheckTheChain/Resources/`.
+
+Convex is the source of truth — it already holds the enriched corpus (gradings, chapters, isnad, embeddings), so the pipeline dumps it rather than re-deriving anything. That's what guarantees web/iOS parity.
+
+Row ids in `hadith.sqlite` are dense and double as row indexes into `embeddings.bin`. **The two artifacts must be built in the same run** or search returns the wrong hadith.
+
+The Core ML conversion needs Python 3.11/3.12 (`packages/pipeline/coreml/.venv`) — coremltools does not support the system Python 3.14.
+
+## Path aliases (apps/web)
 
 - `@/*` → `./src/*`
 - `@convex/*` → `./convex/*`
 
-## URL Routes
+## URL routes (apps/web)
 
 - `/` — Search (with `?q=...`)
 - `/hadith/{collection-slug}/{number}` — Hadith detail
 - `/isnad/{collection-slug}/{number}` — Chain of narrators
 - `/browse` and `/browse/{collection-slug}?page=N` — Collection browsing
 
-## Environment Variables
+## Environment variables
 
 ```
 NEXT_PUBLIC_CONVEX_URL       # Convex deployment endpoint
 CONVEX_DEPLOYMENT            # Convex deployment ID (local dev)
 ```
 
-## Build Considerations
+Lives in `apps/web/.env.local`. The iOS app needs none.
 
-- `next.config.ts` aliases `sharp` and `onnxruntime-node` to empty strings in browser builds (Turbopack) — these are Node-only deps that would crash the client bundle
-- Embedding model is loaded lazily on first search with a progress bar; not bundled at build time
-- Grading types: `Sahih`, `Hasan`, `Da'if`, `Mawdu'`, `Unknown` — defined in `src/lib/types.ts`
-- Arabic text uses `Noto Naskh Arabic` font with `lang="ar" dir="rtl"` attributes
+## Build considerations
+
+- **Vercel's Root Directory must be set to `apps/web`.**
+- `apps/web/next.config.ts` aliases `sharp` and `onnxruntime-node` to empty strings in browser builds (Turbopack) — Node-only deps that would crash the client bundle
+- Web embedding model loads lazily on first search with a progress bar; not bundled at build time
+- Grading types: `Sahih`, `Hasan`, `Da'if`, `Mawdu'`, `Unknown` — `apps/web/src/lib/types.ts`, mirrored in `HadithKit/Models`
+- Arabic text uses `Noto Naskh Arabic` with `lang="ar" dir="rtl"` on web, and the same bundled face on iOS
