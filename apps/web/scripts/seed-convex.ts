@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../convex/_generated/api";
+import { parseIsnad } from "./lib/isnad.ts";
 
 interface RawHadith {
   id: number;
@@ -59,126 +60,7 @@ function cleanText(text: string): string {
   return text.replace(/\s+/g, " ").replace(/\n/g, " ").trim();
 }
 
-// --- Isnad parsing ---
-
-function escapeRegex(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function stripDiacritics(text: string): string {
-  return text.replace(
-    /[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06DC\u06DF-\u06E4\u06E7-\u06E8\u06EA-\u06ED]/g,
-    ""
-  );
-}
-
-const TRANSMISSION_VERBS_PLAIN = [
-  "حدثنا",
-  "حدثني",
-  "أخبرنا",
-  "أخبرني",
-  "سمعت",
-  "سمع",
-  "عن",
-];
-
-const verbSplitPattern = TRANSMISSION_VERBS_PLAIN.map(
-  (v) => `(?<=^|\\s)${escapeRegex(v)}(?=\\s|$)`
-).join("|");
-
-const HONORIFIC_PATTERNS = [
-  /رضي الله عنه(ا|م|ما)?/g,
-  /رضى الله عنه(ا|م|ما)?/g,
-  /صلى الله عليه وسلم/g,
-  /عليه السلام/g,
-  /عليها السلام/g,
-  /أم المؤمنين/g,
-];
-
-const NON_NAME_SEGMENTS = new Set([
-  "يقول",
-  "أنه",
-  "أنها",
-  "في",
-  "إن",
-  "على",
-  "هو",
-  "هي",
-  "لم",
-  "قد",
-  "كان",
-  "ثم",
-  "بهذا الحديث",
-  "المنبر",
-  "بهذا",
-  "نحوه",
-  "مثله",
-  "فيه",
-]);
-
-const MATN_MARKERS = [/[""«»\u201C\u201D‏]/];
-
-function extractIsnadPortion(arabic: string): string {
-  for (const marker of MATN_MARKERS) {
-    const match = arabic.search(marker);
-    if (match !== -1) return arabic.substring(0, match);
-  }
-  const plain = stripDiacritics(arabic);
-  const prophetRef = plain.search(/رسول الله|النبي/);
-  if (prophetRef !== -1) {
-    const afterProphet = plain.indexOf("،", prophetRef);
-    if (afterProphet !== -1) return arabic.substring(0, afterProphet);
-    return arabic.substring(0, Math.min(prophetRef + 80, arabic.length));
-  }
-  return arabic.substring(0, Math.floor(arabic.length * 0.6));
-}
-
-function cleanName(name: string): string {
-  for (const pattern of HONORIFIC_PATTERNS) {
-    name = name.replace(pattern, " ");
-  }
-  name = name.replace(/ـ/g, "");
-  for (const verb of TRANSMISSION_VERBS_PLAIN) {
-    const re = new RegExp(`^${escapeRegex(verb)}\\s+`, "g");
-    name = name.replace(re, "");
-  }
-  name = name.replace(/[،,:;.!?(){}\[\]]/g, " ");
-  name = name.replace(/\s+/g, " ").trim();
-  name = name.replace(
-    /\s+(قال|يقول|أنه|أنها|أنهم|بهذا|نحوه|مثله)$/g,
-    ""
-  );
-  name = name.replace(/\s+على المنبر$/g, "");
-  name = name.replace(/\s+في حديثه$/g, "");
-  return name.trim();
-}
-
-function parseIsnad(arabic: string): string[] | null {
-  if (!arabic || arabic.length < 20) return null;
-  const isnadPortion = extractIsnadPortion(arabic);
-  if (isnadPortion.length < 10) return null;
-  const plain = stripDiacritics(isnadPortion);
-  const splitRegex = new RegExp(`(?:${verbSplitPattern})`, "g");
-  const segments = plain.split(splitRegex);
-  const narrators: string[] = [];
-
-  for (const segment of segments) {
-    const name = cleanName(segment);
-    if (!name || name.length < 3 || name.length > 60) continue;
-    if (NON_NAME_SEGMENTS.has(name)) continue;
-    if (
-      /^(لما|بينا|إذ|فلما|وكان|فكان|كان|كنت|إذا|لا|ما|من|لك|به|هذا|ذلك|الذي|التي)/.test(
-        name
-      ) &&
-      name.length > 15
-    )
-      continue;
-    narrators.push(name);
-  }
-
-  if (narrators.length < 2) return null;
-  return narrators;
-}
+// --- Isnad parsing lives in ./lib/isnad.ts, shared with reparse-isnad.ts ---
 
 // --- Main seeding ---
 

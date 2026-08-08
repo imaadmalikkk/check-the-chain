@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:isnad": "tsx --test scripts/lib/isnad.test.ts",
+    "reparse-isnad": "tsx scripts/reparse-isnad.ts"
   },
   "dependencies": {
     "@huggingface/transformers": "^3.8.1",

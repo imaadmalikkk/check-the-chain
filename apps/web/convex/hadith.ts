@@ -385,3 +385,44 @@ export const patchEmbeddings = mutation({
     }
   },
 });
+
+// Re-parsing the isnad needs the Arabic text back, which `listBySlug`
+// deliberately omits — it is by far the largest field on the document. Pages
+// are small for the same reason.
+export const listArabicBySlug = query({
+  args: { slug: v.string(), offset: v.number(), limit: v.number() },
+  handler: async (ctx, { slug, offset, limit }) => {
+    const docs = await ctx.db
+      .query("hadith")
+      .withIndex("by_collection_order", (q) =>
+        q.eq("collection_slug", slug).gte("order", offset).lt("order", offset + limit)
+      )
+      .collect();
+    return docs.map((d) => ({
+      _id: d._id,
+      hadith_number: d.hadith_number,
+      arabic: d.arabic,
+      isnad_narrators: d.isnad_narrators ?? null,
+    }));
+  },
+});
+
+// Patch re-parsed chains onto existing hadith documents. A null chain clears
+// the field, which is what a hadith whose sanad no longer parses should have.
+export const patchIsnad = mutation({
+  args: {
+    patches: v.array(
+      v.object({
+        id: v.id("hadith"),
+        isnad_narrators: v.union(v.array(v.string()), v.null()),
+      })
+    ),
+  },
+  handler: async (ctx, { patches }) => {
+    for (const { id, isnad_narrators } of patches) {
+      await ctx.db.patch(id, {
+        isnad_narrators: isnad_narrators ?? undefined,
+      });
+    }
+  },
+});
