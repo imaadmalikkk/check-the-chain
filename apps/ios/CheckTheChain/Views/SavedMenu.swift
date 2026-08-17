@@ -11,14 +11,8 @@ import HadithKit
 /// state that is false almost always.
 private struct SavedMenu: ViewModifier {
     let ref: HadithRef
-    let library: Library?
-    /// Fires after a successful save or remove. `LibraryView` uses this to
-    /// reload its Saved list immediately — nothing else about *this*
-    /// screen's identity changes when the ref goes in or out of the store,
-    /// so nothing else would tell the row's owner to refresh.
-    var onChange: (() -> Void)?
 
-    @State private var errorMessage: String?
+    @Environment(AppModel.self) private var app
 
     func body(content: Content) -> some View {
         // Guards the modifier itself, not just the button inside it. With
@@ -26,77 +20,40 @@ private struct SavedMenu: ViewModifier {
         // the row into a context menu with nothing in it — a visible "this
         // control exists" cue for a feature that, per the README, is
         // supposed to be as if it were never there.
-        if let library {
-            content
-                .contextMenu {
-                    // Two fixed items, not one label picked from cached
-                    // state. The previous version read `isSaved` — refreshed
-                    // by a `.task` attached right here — to choose between
-                    // "Save" and "Remove from Saved". That closed most of the
-                    // gap but not all of it: the `.task` is an async actor
-                    // read racing a ~0.5s context-menu lift animation, and
-                    // `.contextMenu`'s content closure is evaluated (and, per
-                    // reports, can be snapshotted for the lift) before an
-                    // async read that hasn't landed yet has any chance to
-                    // update it. A stale label here isn't cosmetic: this
-                    // toggles a real save, so a button that still reads
-                    // "Save" because the refresh hasn't landed yet *deletes*
-                    // the favourite it claims to create.
-                    //
-                    // There is no version of "pick the one correct label"
-                    // that isn't subject to that same race — the content has
-                    // to be known before presentation, and truth is only
-                    // knowable by an async read. So this stops trying to show
-                    // one correct label and shows both fixed outcomes
-                    // instead. Each one's label is a description of exactly
-                    // what tapping it does, unconditionally, so neither can
-                    // ever disagree with its own action. Whichever one
-                    // doesn't apply to the current state is a no-op rather
-                    // than a wrong answer: `save` on an already-saved ref is
-                    // an upsert that only bumps `savedAt` (see its doc
-                    // comment), and `removeSaved` on a ref that isn't saved
-                    // is a no-op by construction. Nothing here depends on
-                    // `isSaved` being fresh, so there is no gap left to race.
-                    Button {
-                        Task { await save(library: library) }
-                    } label: {
-                        Label("Save", systemImage: "bookmark")
-                    }
+        if app.savedState.isAvailable {
+            content.contextMenu {
+                // One item, picked from `SavedState.contains`, not two fixed
+                // outcomes. The previous version showed both "Save" and
+                // "Remove from Saved" unconditionally, because the label used
+                // to be read from a private per-view cache refreshed by a
+                // `.task` racing the ~0.5s context-menu lift animation — a
+                // button could read "Save" from stale state and *delete* the
+                // favourite it claimed to create. `SavedState.contains` is a
+                // synchronous read of the one shared in-memory set, current
+                // as of the moment this menu is built, so there is no async
+                // gap left for the label to race.
+                if app.savedState.contains(ref) {
                     Button(role: .destructive) {
-                        Task { await remove(library: library) }
+                        Task { await app.savedState.removeSaved(ref) }
                     } label: {
                         Label("Remove from Saved", systemImage: "bookmark.slash")
                     }
+                } else {
+                    Button {
+                        Task { await app.savedState.save(ref) }
+                    } label: {
+                        Label("Save", systemImage: "bookmark")
+                    }
                 }
-                .saveErrorAlert($errorMessage)
+            }
         } else {
             content
-        }
-    }
-
-    private func save(library: Library) async {
-        do {
-            try await library.save(ref)
-            errorMessage = nil
-            onChange?()
-        } catch {
-            errorMessage = SaveErrorPolicy.updateFailedMessage
-        }
-    }
-
-    private func remove(library: Library) async {
-        do {
-            try await library.removeSaved(ref)
-            errorMessage = nil
-            onChange?()
-        } catch {
-            errorMessage = SaveErrorPolicy.updateFailedMessage
         }
     }
 }
 
 extension View {
-    func savedMenu(ref: HadithRef, library: Library?, onChange: (() -> Void)? = nil) -> some View {
-        modifier(SavedMenu(ref: ref, library: library, onChange: onChange))
+    func savedMenu(ref: HadithRef) -> some View {
+        modifier(SavedMenu(ref: ref))
     }
 }

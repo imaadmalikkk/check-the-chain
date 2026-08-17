@@ -203,8 +203,7 @@ struct ChapterView: View {
                     }
                     .buttonStyle(.plain)
                     .savedMenu(
-                        ref: HadithRef(collectionSlug: item.collectionSlug, number: item.number),
-                        library: corpus.library
+                        ref: HadithRef(collectionSlug: item.collectionSlug, number: item.number)
                     )
                 }
 

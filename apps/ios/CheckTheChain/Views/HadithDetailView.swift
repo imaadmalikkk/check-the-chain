@@ -30,11 +30,11 @@ struct HadithDetailView: View {
     }
 
     @State private var hadith: Hadith?
-    @State private var isSaved = false
-    @State private var saveError: String?
     /// Default on. Someone who wants no reading history can turn it off in the
     /// library sheet; see Task 7.
     @AppStorage(PreferenceKey.recordsHistory) private var recordsHistory = true
+
+    @Environment(AppModel.self) private var app
 
     private var ref: HadithRef { HadithRef(collectionSlug: slug, number: number) }
 
@@ -107,14 +107,14 @@ struct HadithDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if let hadith {
-                if corpus.library != nil {
+                if app.savedState.isAvailable {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
-                            Task { await toggleSaved() }
+                            Task { await app.savedState.toggleSaved(ref) }
                         } label: {
-                            Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
+                            Image(systemName: app.savedState.contains(ref) ? "bookmark.fill" : "bookmark")
                         }
-                        .accessibilityLabel(isSaved ? "Remove from saved" : "Save")
+                        .accessibilityLabel(app.savedState.contains(ref) ? "Remove from saved" : "Save")
                         .accessibilityIdentifier("saveToggle")
                     }
                 }
@@ -128,28 +128,9 @@ struct HadithDetailView: View {
         .task {
             hadith = try? await corpus.store.hadith(slug: slug, number: number)
             guard let library = corpus.library else { return }
-            isSaved = (try? await library.isSaved(ref)) ?? false
             if recordsHistory {
                 await library.recordView(ref)
             }
-        }
-        .saveErrorAlert($saveError)
-    }
-
-    /// Unlike `recordView`, a failure here has to be visible: the reader asked
-    /// for this, so it must not appear to have worked when it did not. The
-    /// icon still self-corrects to real truth either way — a throw is not
-    /// proof the write didn't happen — but now `saveError` also surfaces it,
-    /// per `SaveErrorPolicy`, the policy shared with the context menu and the
-    /// library sheet's dangling-row Remove.
-    private func toggleSaved() async {
-        guard let library = corpus.library else { return }
-        do {
-            isSaved = try await library.toggleSaved(ref)
-            saveError = nil
-        } catch {
-            isSaved = (try? await library.isSaved(ref)) ?? isSaved
-            saveError = SaveErrorPolicy.updateFailedMessage
         }
     }
 

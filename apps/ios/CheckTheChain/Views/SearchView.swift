@@ -130,8 +130,7 @@ struct SearchView: View {
                         ref: HadithRef(
                             collectionSlug: result.hadith.collectionSlug,
                             number: result.hadith.number
-                        ),
-                        library: corpus.library
+                        )
                     )
                 }
 

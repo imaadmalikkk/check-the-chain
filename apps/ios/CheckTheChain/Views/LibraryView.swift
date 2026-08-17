@@ -16,6 +16,7 @@ struct LibraryView: View {
     }
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppModel.self) private var app
     @AppStorage(PreferenceKey.recordsHistory) private var recordsHistory = true
 
     @State private var segment: Segment = .saved
@@ -23,7 +24,20 @@ struct LibraryView: View {
     @State private var resolved: [HadithRef: Hadith] = [:]
     @State private var isLoading = true
     @State private var path = NavigationPath()
+    /// Only for Recent's own failures (`removeRecent`, `clearRecent`) — Saved
+    /// failures go through `SavedState.errorMessage`, surfaced once at the
+    /// tab root (see `RootView`).
     @State private var errorMessage: String?
+
+    /// `refs`, minus anything unstarred since it was fetched. Recomputed
+    /// automatically whenever `SavedState.savedRefs` changes, which is what
+    /// lets an unstar on a pushed detail view (still inside this sheet's own
+    /// `NavigationStack`) drop the row the moment it happens, with no reload
+    /// and no `.onChange(of: path)` watching for a return to root.
+    private var visibleRefs: [HadithRef] {
+        guard segment == .saved else { return refs }
+        return refs.filter { app.savedState.contains($0) }
+    }
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -41,17 +55,6 @@ struct LibraryView: View {
                 .safeAreaInset(edge: .top) { picker }
         }
         .task(id: segment) { await reload() }
-        // `.task(id: segment)` is on the stack, not the pushed detail view —
-        // pushing a hadith *inside* this sheet doesn't change `segment` and
-        // doesn't dismiss the stack, so it never reruns on its own. Unstar
-        // from the pushed detail page, come back with the system back
-        // button, and without this the row would still be sitting here.
-        // `path` is already `@State` right here, so returning to root is
-        // exactly the moment this can catch.
-        .onChange(of: path) { _, newPath in
-            guard newPath.isEmpty else { return }
-            Task { await reload() }
-        }
         .saveErrorAlert($errorMessage)
     }
 
@@ -90,7 +93,7 @@ struct LibraryView: View {
     private var content: some View {
         if isLoading {
             ProgressView().frame(maxWidth: .infinity).padding(.top, 60)
-        } else if refs.isEmpty {
+        } else if visibleRefs.isEmpty {
             empty
         } else {
             // `ScrollView`/`LazyVStack`, same as every other list in the app,
@@ -107,15 +110,17 @@ struct LibraryView: View {
             // only place in the app to use.
             //
             // `.savedMenu` — the long-press affordance already on every
-            // result card — covers removal instead: for a Saved row it always
-            // reads "Remove from Saved" and removes it (see `SavedMenu`'s doc
-            // comment for why the label is no longer state-dependent). That
-            // makes this screen's rows behave exactly like the identical card
-            // everywhere else, rather than inventing a second, sheet-only way
-            // to do the same thing.
+            // result card — covers removal instead: on a Saved row it's
+            // always showing "Remove from Saved" (read straight off
+            // `SavedState`, not this screen's own state), and tapping it
+            // removes the ref from `SavedState`, which is what makes the row
+            // disappear from `visibleRefs` above. That makes this screen's
+            // rows behave exactly like the identical card everywhere else,
+            // rather than inventing a second, sheet-only way to do the same
+            // thing.
             ScrollView {
                 LazyVStack(spacing: 10) {
-                    ForEach(refs, id: \.self) { ref in
+                    ForEach(visibleRefs, id: \.self) { ref in
                         row(ref)
                     }
                 }
@@ -135,9 +140,7 @@ struct LibraryView: View {
                 HadithCard(hadith: hadith)
             }
             .buttonStyle(.plain)
-            .savedMenu(ref: ref, library: corpus.library) {
-                Task { await reload() }
-            }
+            .savedMenu(ref: ref)
         } else {
             dangling(ref)
         }
@@ -156,20 +159,26 @@ struct LibraryView: View {
                 .foregroundStyle(Palette.inkMuted)
             Button("Remove") {
                 Task {
-                    guard let library = corpus.library else { return }
-                    do {
-                        // Segment-specific: under Recent the ref lives in
-                        // `ViewedHadith`, not `SavedHadith`. Each segment's
-                        // row must clear the store it actually came from.
-                        switch segment {
-                        case .saved: try await library.removeSaved(ref)
-                        case .recent: try await library.removeRecent(ref)
+                    // Segment-specific: under Recent the ref lives in
+                    // `ViewedHadith`, not `SavedHadith`. Each segment's row
+                    // must clear the store it actually came from.
+                    switch segment {
+                    case .saved:
+                        // Through `SavedState`, not `Library` directly, so
+                        // the shared cache drops the ref too — that's also
+                        // what makes the row vanish here, via `visibleRefs`,
+                        // with no explicit `reload()` needed.
+                        await app.savedState.removeSaved(ref)
+                    case .recent:
+                        guard let library = corpus.library else { return }
+                        do {
+                            try await library.removeRecent(ref)
+                            errorMessage = nil
+                        } catch {
+                            errorMessage = SaveErrorPolicy.updateFailedMessage
                         }
-                        errorMessage = nil
-                    } catch {
-                        errorMessage = SaveErrorPolicy.updateFailedMessage
+                        await reload()
                     }
-                    await reload()
                 }
             }
             .font(.caption.weight(.medium))
