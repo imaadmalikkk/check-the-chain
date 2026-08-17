@@ -78,3 +78,6 @@ xcuserdata/
 
 # Device build products (separate from the simulator DerivedData).
 apps/ios/DerivedDataDevice/
+
+# Simulator verification media produced by agent tooling during development.
+apps/ios/artifacts/
