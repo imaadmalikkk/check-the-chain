@@ -10,7 +10,10 @@ import Foundation
 enum TestFixtures {
     /// Loaded once — opening the database and mapping 18MB of embeddings for
     /// every test would dominate the run.
-    private static let sharedCorpus = Result { try Corpus(bundle: .main) }
+    ///
+    /// `libraryURL: nil` — the engine tests must not create or mutate a real
+    /// favourites store in the app's container.
+    private static let sharedCorpus = Result { try Corpus(bundle: .main, libraryURL: nil) }
     private static let sharedGolden = Result { try loadGolden() }
 
     static func corpus() throws -> Corpus { try sharedCorpus.get() }

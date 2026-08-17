@@ -79,4 +79,15 @@ struct LibraryTests {
         #expect(try await library.recent().isEmpty)
         #expect(try await library.saved() == [bukhari1])
     }
+
+    /// The app must survive a library that will not open. Search and browsing
+    /// have nothing to do with favourites and must not be able to fail with them.
+    @Test("A corpus built without a library still works")
+    func libraryIsOptional() async throws {
+        let corpus = try TestFixtures.corpus()
+        // The shared fixture is built with libraryURL: nil.
+        #expect(corpus.library == nil)
+        #expect(corpus.hadithCount == 47_442)
+        #expect(try await corpus.store.hadith(slug: "sahih-al-bukhari", number: "1") != nil)
+    }
 }
