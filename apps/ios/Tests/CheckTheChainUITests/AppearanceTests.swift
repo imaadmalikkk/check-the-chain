@@ -15,6 +15,18 @@ final class AppearanceTests: XCTestCase {
         return app
     }
 
+    /// The app opens on the search canvas, so anything that wants the daily
+    /// hadith has to go a tab across first.
+    @discardableResult
+    private func openToday(_ app: XCUIApplication) -> Bool {
+        XCTAssertTrue(
+            app.staticTexts["check the chain"].waitForExistence(timeout: 20),
+            "The search canvas never appeared"
+        )
+        tap(app.tabButton("Today"), "the Today tab", in: app)
+        return app.staticTexts["Read in full"].waitForExistence(timeout: 20)
+    }
+
     /// Fails loudly if the simulator wasn't put into the appearance this test
     /// is about. Without this the test would happily pass in light mode and
     /// attach a set of screenshots proving nothing.
@@ -34,7 +46,8 @@ final class AppearanceTests: XCTestCase {
     func testDarkMode() {
         let app = launch()
         assertAppearance(app, isDark: true)
-        XCTAssertTrue(app.staticTexts["Read in full"].waitForExistence(timeout: 20))
+        capture(app, "dark-00-search-canvas")
+        XCTAssertTrue(openToday(app))
         capture(app, "dark-01-today")
 
         app.staticTexts["Read in full"].tap()
@@ -55,7 +68,8 @@ final class AppearanceTests: XCTestCase {
     /// running this directly just exercises whatever size the simulator is on.
     func testLargestDynamicType() {
         let app = launch()
-        XCTAssertTrue(app.staticTexts["Read in full"].waitForExistence(timeout: 20))
+        capture(app, "xxxl-00-search-canvas")
+        XCTAssertTrue(openToday(app))
         capture(app, "xxxl-01-today")
 
         tap(app.tabButton("Browse"), "the Browse tab", in: app)
@@ -70,7 +84,10 @@ final class AppearanceTests: XCTestCase {
     /// corpus by a wide margin. It is the worst case for the detail layout.
     func testLongestAttribution() {
         let app = launch()
-        XCTAssertTrue(app.staticTexts["Read in full"].waitForExistence(timeout: 20))
+        XCTAssertTrue(
+            app.staticTexts["check the chain"].waitForExistence(timeout: 20),
+            "The search canvas never appeared"
+        )
 
         tap(app.tabButton("Browse"), "the Browse tab", in: app)
         XCTAssertTrue(app.staticTexts["Muwatta Malik"].waitForExistence(timeout: 10))

@@ -19,6 +19,16 @@ struct RootView: View {
 private struct MainTabs: View {
     let corpus: Corpus
 
+    private enum Section: Hashable { case today, browse, search }
+
+    /// The app opens on search.
+    ///
+    /// Verifying a hadith someone sent you is the thing this app is for, and
+    /// with `Tab(role: .search)` the tab bar itself becomes the search field —
+    /// so launching here gives an almost empty screen with one obvious control
+    /// at the bottom, rather than a card the reader didn't ask for.
+    @State private var section: Section = .search
+
     /// Published so UI tests can assert which appearance actually resolved.
     /// XCTest has no API to set the interface style, and a launch-argument
     /// override would be a test hook in shipping code — so the appearance is set
@@ -26,17 +36,17 @@ private struct MainTabs: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        TabView {
-            Tab("Today", systemImage: "sun.horizon") {
+        TabView(selection: $section) {
+            Tab("Today", systemImage: "sun.horizon", value: Section.today) {
                 TodayView(corpus: corpus)
             }
-            Tab("Browse", systemImage: "books.vertical") {
+            Tab("Browse", systemImage: "books.vertical", value: Section.browse) {
                 BrowseView(corpus: corpus)
             }
             // The search role turns this into the bottom search field that
             // sits beside the tab bar rather than a fourth tab icon.
-            Tab(role: .search) {
-                SearchView(corpus: corpus)
+            Tab(value: Section.search, role: .search) {
+                SearchView(corpus: corpus) { section = .browse }
             }
         }
         // The tab bar shrinks out of the way while reading a long hadith and

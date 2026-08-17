@@ -22,7 +22,11 @@ struct BrowseView: View {
             }
             .background(Palette.ground)
             .scrollEdgeEffectStyle(.soft, for: .top)
+            // Inline, not a large title. A large title is a heading the size of
+            // a headline for a screen whose content is already labelled by
+            // section — and it is the loudest thing on an otherwise quiet page.
             .navigationTitle("Browse")
+            .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(for: Route.self) { $0.destination(corpus: corpus) }
         }
         .task {
@@ -30,41 +34,51 @@ struct BrowseView: View {
         }
     }
 
+    /// One surface per group, rows divided by hairlines.
+    ///
+    /// These collections are peers, and a stack of individually shadowed cards
+    /// turned a list of sixteen into sixteen separate objects to look at. One
+    /// block per group says "these belong together" and gives the eye a single
+    /// edge to follow down.
     private func section(_ group: HadithCollection.Group) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(group.title)
-                .font(.footnote.weight(.semibold))
+                .font(.footnote.weight(.medium))
                 .foregroundStyle(Palette.inkMuted)
-                .textCase(.uppercase)
-                .tracking(0.6)
+                .padding(.leading, 6)
 
-            VStack(spacing: 8) {
-                ForEach(HadithCollection.inGroup(group)) { collection in
+            let collections = HadithCollection.inGroup(group)
+            VStack(spacing: 0) {
+                ForEach(Array(collections.enumerated()), id: \.element.id) { index, collection in
                     NavigationLink(value: Route.collection(collection.slug)) {
                         row(collection)
                     }
                     .buttonStyle(.plain)
+                    if index < collections.count - 1 {
+                        RowDivider()
+                    }
                 }
             }
+            .groupedSurface()
         }
     }
 
     private func row(_ collection: HadithCollection) -> some View {
-        // Side by side normally; stacked once the text is large enough that
-        // sharing a line squeezes the count until "7,276" wraps to "7,27 / 6".
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .top, spacing: 12) {
-                title(collection)
-                Spacer(minLength: 8)
-                trailing(collection).padding(.top, 2)
-            }
-            VStack(alignment: .leading, spacing: 10) {
-                title(collection)
-                trailing(collection)
-            }
+        // A plain row, not `ViewThatFits`. That measured the summary's *ideal*
+        // width — the width it would take unwrapped — which for a sentence is
+        // always wider than the screen, so the fallback stacked layout won won
+        // every time and the count landed on its own line under the summary.
+        // Keeping the count unwrappable is what the stacking was for, and
+        // `lineLimit(1).fixedSize` does that on its own.
+        HStack(alignment: .center, spacing: 12) {
+            title(collection)
+            Spacer(minLength: 8)
+            trailing(collection)
         }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .cardSurface(padding: 16)
+        .contentShape(.rect)
     }
 
     private func title(_ collection: HadithCollection) -> some View {
@@ -110,20 +124,27 @@ struct CollectionView: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 8) {
-                ForEach(chapters) { chapter in
+            // One surface for the whole chapter list, same as Browse. Bukhari
+            // has 97 chapters; as separate cards that is 97 shadows.
+            LazyVStack(spacing: 0) {
+                ForEach(Array(chapters.enumerated()), id: \.element.id) { index, chapter in
                     NavigationLink(value: Route.chapter(slug, chapter.chapterID)) {
                         row(chapter)
                     }
                     .buttonStyle(.plain)
+                    if index < chapters.count - 1 {
+                        RowDivider()
+                    }
                 }
             }
+            .groupedSurface()
             .padding(.horizontal, 16)
             .padding(.top, 8)
             .padding(.bottom, 32)
             .readableWidth()
         }
         .background(Palette.ground)
+        .scrollEdgeEffectStyle(.soft, for: .top)
         .navigationTitle(collection?.shortName ?? "Collection")
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -132,8 +153,8 @@ struct CollectionView: View {
     }
 
     private func row(_ chapter: Chapter) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(chapter.nameEnglish)
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(Palette.ink)
@@ -149,9 +170,14 @@ struct CollectionView: View {
             Text("\(chapter.hadithCount)")
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(Palette.inkFaint)
+            Image(systemName: "chevron.right")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(Palette.inkFaint)
         }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 13)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .cardSurface(padding: 14)
+        .contentShape(.rect)
     }
 }
 

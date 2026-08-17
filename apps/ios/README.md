@@ -113,6 +113,18 @@ Asserted by `PerformanceTests`, measured on the simulator — where Core ML has 
 
 If this ever needs trimming, the lever is the Arabic column — 48.6MB of the 68.4MB of text — which compresses roughly 4:1 with per-row zlib, at the cost of a decompress on read in the detail view. Not worth doing at 80MB.
 
+## Surfaces
+
+The single most consequential value in the design system is the ground colour. It used to be `#FAFAFA`, which is near-white — and against near-white a white card is invisible, so every card needed a border drawn around it to exist at all. Once every card has a border the screen is a grid of boxes.
+
+The ground is now `#F2F2F3`. A white card is simply *lighter than the page*, so:
+
+- **No borders and no shadows.** A card is a fill and a 22pt radius, nothing else. It does not need to pretend to float. A soft drop shadow under every card is the tell of a design that doesn't trust its own contrast, and next to flat fills it looks cheap.
+- **Lists are one surface, not a stack of cards.** Sixteen collections as sixteen separate cards is sixteen objects to look at; one block per group with hairline dividers is a list. Same for the 97 chapters of Bukhari.
+- **Both appearances carry their own contrast step.** `Palette.surface` sits a different distance from the ground in light and dark, because that step is now the only thing separating a card from the page.
+
+Colour appears in exactly one place: the grading badge. That is the answer to "is this hadith real", and it is the only thing on screen that earns a hue.
+
 ## Liquid Glass
 
 The rule Apple states and most apps break: **glass belongs on controls floating above content, never behind body text.** A blurred backdrop under a paragraph of hadith would look modern and read worse, and reading is the only thing this app does.
@@ -121,6 +133,12 @@ The rule Apple states and most apps break: **glass belongs on controls floating 
 - Not glass: result cards, detail surfaces, anything containing a narration.
 
 All glass routes through a single `glassSurface(in:interactive:)` modifier in `DesignSystem.swift`. That is deliberate — see below.
+
+## The app opens on search
+
+Verifying a hadith someone sent you is what this is for, so launch lands on an almost empty canvas: a wordmark, three example queries, and the search field. With `Tab(role: .search)` the tab bar *is* the search field, so there is one obvious control and nothing else asking for attention.
+
+That has one trap, and it is not documented anywhere obvious: **while the search tab is active, iOS 26 folds the entire tab group behind a single button** whose accessibility value is `Collapsed`. The other tabs are not merely off screen — they are absent from the hierarchy. On a cold launch that made Browse unreachable except by tapping a control that gives no hint of what it holds, which is why the canvas carries its own "Browse 16 collections" link. `XCUIApplication.tabButton(_:)` expands the collapsed group before giving up, for the same reason.
 
 ## Arabic typography
 

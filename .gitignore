@@ -75,3 +75,6 @@ xcuserdata/
 # Subagent-driven-development scratch: ledgers, briefs, review packages.
 # The git history is the real record.
 /.superpowers/
+
+# Device build products (separate from the simulator DerivedData).
+apps/ios/DerivedDataDevice/

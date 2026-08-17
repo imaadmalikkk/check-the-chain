@@ -13,18 +13,17 @@ struct GradingBadge: View {
     var body: some View {
         HStack(spacing: 5) {
             Text(grading.rawValue)
-                .font(.caption.weight(.medium))
+                .font(.caption.weight(.semibold))
             if !compact {
                 Text(grading.meaning)
                     .font(.caption2)
-                    .opacity(0.65)
+                    .opacity(0.7)
             }
         }
         .foregroundStyle(grading.tint)
-        .padding(.horizontal, 9)
-        .padding(.vertical, 4)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
         .background(grading.fill, in: .capsule)
-        .overlay { Capsule().strokeBorder(grading.stroke, lineWidth: 0.5) }
         // Grading is important enough to scale, but it's a badge — past
         // accessibility1 it stops being a badge and starts being a paragraph.
         .dynamicTypeSize(...DynamicTypeSize.accessibility1)
@@ -90,31 +89,38 @@ struct HadithCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 8) {
+            // Reference and grading share the top line. The badge used to sit
+            // alone on the first row, spending the most prominent line in the
+            // card on a coloured pill; putting it last instead would bury the
+            // one thing the app exists to tell you. Beside the reference it is
+            // both the first thing read and only half a row.
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(hadith.reference)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Palette.ink)
+                Spacer(minLength: 4)
                 if hadith.grading != .unknown {
-                    GradingBadge(grading: hadith.grading)
+                    GradingBadge(grading: hadith.grading, compact: true)
                 }
-                Spacer(minLength: 0)
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                if let chapterID = hadith.chapterID, let chapter = hadith.chapterEnglish {
+                    Text(Self.chapterLine(chapterID: chapterID, inChapter: hadith.hadithInChapter, chapter: chapter))
+                        .font(.caption)
+                        .foregroundStyle(Palette.inkMuted)
+                }
+                Spacer(minLength: 4)
                 if let score {
                     Text("\(score)%")
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(Palette.inkFaint)
                         .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
                         .dynamicTypeSize(...DynamicTypeSize.accessibility1)
                 }
             }
-            .padding(.bottom, 12)
-
-            Text(hadith.reference)
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(Palette.inkBody)
-
-            if let chapterID = hadith.chapterID, let chapter = hadith.chapterEnglish {
-                Text(Self.chapterLine(chapterID: chapterID, inChapter: hadith.hadithInChapter, chapter: chapter))
-                    .font(.caption)
-                    .foregroundStyle(Palette.inkFaint)
-                    .padding(.top, 2)
-            }
+            .padding(.top, 3)
 
             if !hadith.narrator.isEmpty {
                 // Capped at two lines. The narrator field holds everything up to
@@ -126,13 +132,13 @@ struct HadithCard: View {
                     .font(.subheadline.italic())
                     .foregroundStyle(Palette.inkMuted)
                     .lineLimit(2)
-                    .padding(.top, 6)
+                    .padding(.top, 10)
             }
 
             HighlightedText(text: hadith.english, query: query)
                 .font(.body)
                 .foregroundStyle(Palette.inkBody)
-                .lineSpacing(4)
+                .lineSpacing(5)
                 .lineLimit(6)
                 .padding(.top, 8)
         }

@@ -13,6 +13,24 @@ extension XCUIApplication {
     /// name also appears as the navigation title, so a bare `buttons[label]`
     /// lookup is ambiguous and throws rather than picking one.
     func tabButton(_ label: String) -> XCUIElement {
+        let direct = resolveTab(label)
+        if direct.exists { return direct }
+
+        // While the search tab is active, iOS 26 folds the whole tab group into
+        // one button carrying the accessibility value "Collapsed". The other
+        // tabs are not merely off screen — they do not exist in the hierarchy —
+        // so no amount of waiting will find them. Expand it and look again,
+        // which is also what a person has to do.
+        let collapsed = tabBars.buttons
+            .matching(NSPredicate(format: "value == %@", "Collapsed"))
+            .firstMatch
+        if collapsed.waitForExistence(timeout: 5) {
+            collapsed.tap()
+        }
+        return resolveTab(label)
+    }
+
+    private func resolveTab(_ label: String) -> XCUIElement {
         let candidates = [
             tabBars.buttons[label],
             segmentedControls.buttons[label],

@@ -36,6 +36,7 @@ struct TodayView: View {
             .background(Palette.ground)
             .scrollEdgeEffectStyle(.soft, for: .top)
             .navigationTitle("Today")
+            .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(for: Route.self) { $0.destination(corpus: corpus) }
         }
         .task {

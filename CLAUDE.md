@@ -89,6 +89,10 @@ Everything runs on-device. No network calls anywhere in the app.
 
 All glass is routed through a single `GlassSurface` modifier in `DesignSystem.swift`. This is deliberate: it's the one file an iOS 18 backport would need to touch.
 
+**Surfaces:** ground `#F2F2F3`, surfaces white, **no borders and no shadows** — a card reads as a card because it is lighter than the page, and that contrast step is the only separation it gets. Lists of peers (collections, chapters) are one grouped surface with hairline dividers, not a stack of cards. Colour appears only on the grading badge.
+
+**The app launches on the search tab.** While a `Tab(role: .search)` is active, iOS 26 folds the whole tab group behind one button whose accessibility value is `Collapsed` — the other tabs are absent from the view hierarchy, not just off screen. Hence the "Browse N collections" link on the search canvas, and the expand step in `XCUIApplication.tabButton(_:)`.
+
 ## packages/pipeline
 
 `Convex export → hadith.sqlite + embeddings.bin + MiniLM.mlpackage`, written into `apps/ios/CheckTheChain/Resources/`.

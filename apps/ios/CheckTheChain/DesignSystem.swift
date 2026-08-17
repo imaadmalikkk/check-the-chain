@@ -1,29 +1,43 @@
 import SwiftUI
 import HadithKit
 
-/// Design tokens, carried over from the web app so the two products read as one.
+/// Design tokens.
 ///
-/// The light values are the web app's literally — `#FAFAFA` ground, `#171717`
-/// ink, hairline neutral borders, and the emerald/amber/red grading palette from
-/// `apps/web/src/components/grading-badge.tsx`. The dark values are new: the web
-/// app has no dark mode, and iOS needs one.
+/// The palette is monochrome apart from grading, which is the one place colour
+/// carries meaning rather than decoration.
+///
+/// The ground is a real grey, not the near-white `#FAFAFA` this used to be.
+/// That single value is most of what separates a clean layout from a flat one:
+/// against `#FAFAFA` a white card is invisible and needs a border drawn round it
+/// to exist at all, and once every card has a border the screen is a grid of
+/// boxes. Against `#F2F2F3` the card simply *is* lighter than the page, so the
+/// borders come off and nothing is lost.
 enum Palette {
-    // Tailwind neutrals, the same ramp the web app uses.
-    static let ground = adaptive(light: 0xFAFAFA, dark: 0x0A0A0A)
-    static let surface = adaptive(light: 0xFFFFFF, dark: 0x161616)
-    static let surfaceRaised = adaptive(light: 0xFFFFFF, dark: 0x1F1F1F)
-    static let hairline = adaptive(light: 0xE5E5E5, dark: 0x2A2A2A)
+    static let ground = adaptive(light: 0xF2F2F3, dark: 0x0A0A0A)
+    static let surface = adaptive(light: 0xFFFFFF, dark: 0x1A1A1C)
+    static let surfaceRaised = adaptive(light: 0xFFFFFF, dark: 0x242426)
+    /// Filled controls that sit on the ground — suggestion chips, quiet buttons.
+    static let chip = adaptive(light: 0xE7E7EA, dark: 0x1F1F21)
+    /// Dividers *inside* a surface. There are no borders around one.
+    static let hairline = adaptive(light: 0xECECEE, dark: 0x2C2C2E)
 
-    static let ink = adaptive(light: 0x171717, dark: 0xF5F5F5)
-    static let inkBody = adaptive(light: 0x262626, dark: 0xE5E5E5)
-    static let inkMuted = adaptive(light: 0x737373, dark: 0x9A9A9A)
-    static let inkFaint = adaptive(light: 0xA3A3A3, dark: 0x6E6E6E)
+    static let ink = adaptive(light: 0x1C1C1E, dark: 0xF2F2F3)
+    static let inkBody = adaptive(light: 0x2C2C2E, dark: 0xE4E4E6)
+    static let inkMuted = adaptive(light: 0x8A8A8E, dark: 0x98989D)
+    static let inkFaint = adaptive(light: 0xB4B4B9, dark: 0x6C6C70)
 
-    static let highlight = adaptive(light: 0xFEF3C7, dark: 0x4A3A0E)
+    static let highlight = adaptive(light: 0xFDF0C8, dark: 0x4A3A0E)
 
     static func adaptive(light: UInt32, dark: UInt32) -> Color {
         Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(hex: dark) : UIColor(hex: light) })
     }
+}
+
+/// Corner radii. Large and consistent — the reference designs round everything
+/// generously and never mix radii within a screen.
+enum Radius {
+    static let card: CGFloat = 22
+    static let row: CGFloat = 18
 }
 
 /// The visual language for authenticity grading.
@@ -31,35 +45,26 @@ enum Palette {
 /// This is the most information-dense element in the app: it is the answer to
 /// "is this hadith real". Colour alone can't carry that — the term and its
 /// plain-English gloss are always shown together, and the palette is only a
-/// reinforcement.
+/// reinforcement. The fills are lighter than they were and the outlines are
+/// gone; a badge does not need a border to read as a badge.
 extension Grading {
     var tint: Color {
         switch self {
-        case .sahih: Palette.adaptive(light: 0x047857, dark: 0x6EE7B7)
-        case .hasan: Palette.adaptive(light: 0xB45309, dark: 0xFCD34D)
-        case .daif: Palette.adaptive(light: 0xB91C1C, dark: 0xFCA5A5)
-        case .mawdu: Palette.adaptive(light: 0x7F1D1D, dark: 0xFCA5A5)
-        case .unknown: Palette.adaptive(light: 0x737373, dark: 0x9A9A9A)
+        case .sahih: Palette.adaptive(light: 0x057857, dark: 0x6EE7B7)
+        case .hasan: Palette.adaptive(light: 0xA85B08, dark: 0xFCD34D)
+        case .daif: Palette.adaptive(light: 0xB4231C, dark: 0xFCA5A5)
+        case .mawdu: Palette.adaptive(light: 0x8A1D1D, dark: 0xFCA5A5)
+        case .unknown: Palette.adaptive(light: 0x8A8A8E, dark: 0x98989D)
         }
     }
 
     var fill: Color {
         switch self {
-        case .sahih: Palette.adaptive(light: 0xECFDF5, dark: 0x052E22)
-        case .hasan: Palette.adaptive(light: 0xFFFBEB, dark: 0x36260A)
-        case .daif: Palette.adaptive(light: 0xFEF2F2, dark: 0x3B1212)
-        case .mawdu: Palette.adaptive(light: 0xFEE2E2, dark: 0x4A1212)
-        case .unknown: Palette.adaptive(light: 0xFAFAFA, dark: 0x1F1F1F)
-        }
-    }
-
-    var stroke: Color {
-        switch self {
-        case .sahih: Palette.adaptive(light: 0xA7F3D0, dark: 0x0B5741)
-        case .hasan: Palette.adaptive(light: 0xFDE68A, dark: 0x6B4A0C)
-        case .daif: Palette.adaptive(light: 0xFECACA, dark: 0x6B1F1F)
-        case .mawdu: Palette.adaptive(light: 0xFCA5A5, dark: 0x7A2020)
-        case .unknown: Palette.adaptive(light: 0xE5E5E5, dark: 0x2A2A2A)
+        case .sahih: Palette.adaptive(light: 0xE8F7F0, dark: 0x0A2A20)
+        case .hasan: Palette.adaptive(light: 0xFBF2E0, dark: 0x33240A)
+        case .daif: Palette.adaptive(light: 0xFBEBEA, dark: 0x361212)
+        case .mawdu: Palette.adaptive(light: 0xF8DFDE, dark: 0x451212)
+        case .unknown: Palette.adaptive(light: 0xEDEDEF, dark: 0x1F1F21)
         }
     }
 }
@@ -149,20 +154,33 @@ extension View {
             .tracking(0.6)
     }
 
-    /// A plain content surface: hairline border, subtle rounding, no glass.
+    /// A content surface: a fill and a radius. Nothing else.
     ///
-    /// Apple's rule, and the one most apps break: glass belongs on controls
-    /// floating *above* content. Blurring what's behind a paragraph of a hadith
-    /// to make it look modern would make it harder to read, which is the only
-    /// thing that actually matters here.
-    func cardSurface(padding: CGFloat = 18) -> some View {
+    /// No border and **no shadow**. A card does not need to pretend to float; it
+    /// reads as a card because it is lighter than the ground it sits on, which
+    /// is the whole reason `Palette.ground` is a real grey. A soft drop shadow
+    /// under every card is the tell of a design that doesn't trust its own
+    /// contrast, and it looks cheap next to flat fills.
+    func cardSurface(padding: CGFloat = 20, radius: CGFloat = Radius.card) -> some View {
         self
             .padding(padding)
-            .background(Palette.surface, in: .rect(cornerRadius: 16))
-            .overlay {
-                RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(Palette.hairline, lineWidth: 0.5)
-            }
+            .background(Palette.surface, in: .rect(cornerRadius: radius))
+    }
+
+    /// A grouped block of rows, iOS Settings style: one surface, rows divided by
+    /// hairlines that inset past the leading content rather than running edge to
+    /// edge. Used wherever the content is a list of peers — collections,
+    /// chapters — which a stack of separate cards turns into visual gravel.
+    func groupedSurface() -> some View {
+        self.background(Palette.surface, in: .rect(cornerRadius: Radius.card))
+    }
+
+    /// A quiet filled capsule that sits directly on the ground.
+    func chipSurface() -> some View {
+        self
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(Palette.chip, in: .capsule)
     }
 
     /// The single point where Liquid Glass enters the app.
@@ -173,6 +191,21 @@ extension View {
     /// instead of every view.
     func glassSurface<S: Shape>(in shape: S, interactive: Bool = false) -> some View {
         self.glassEffect(interactive ? .regular.interactive() : .regular, in: shape)
+    }
+}
+
+/// A hairline that starts where the row's text starts.
+///
+/// A divider that runs the full width of a card cuts it in half; one that inset
+/// to the text column reads as a separator between peers.
+struct RowDivider: View {
+    var inset: CGFloat = 16
+
+    var body: some View {
+        Rectangle()
+            .fill(Palette.hairline)
+            .frame(height: 0.5)
+            .padding(.leading, inset)
     }
 }
 

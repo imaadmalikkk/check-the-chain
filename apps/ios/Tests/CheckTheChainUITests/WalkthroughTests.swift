@@ -16,7 +16,24 @@ final class WalkthroughTests: XCTestCase {
     }
 
     func testWalksEveryScreen() {
-        capture("01-today")
+        // The app opens on the search canvas, not on Today.
+        XCTAssertTrue(
+            app.staticTexts["check the chain"].waitForExistence(timeout: 20),
+            "The search canvas never appeared"
+        )
+        XCTAssertTrue(app.searchFields.firstMatch.waitForExistence(timeout: 10))
+        capture("01-launch-search-canvas")
+
+        openToday()
+        openBrowseAndIsnad()
+        openSearch()
+    }
+
+    /// Today is a tab away from the launch screen now, and on iOS 26 selecting
+    /// the search tab collapses the rest of the tab bar — so this is also the
+    /// check that the other tabs are still reachable at all.
+    private func openToday() {
+        tap(app.tabButton("Today"), "the Today tab", in: app)
         XCTAssertTrue(
             app.staticTexts["Hadith of the Day"].waitForExistence(timeout: 20),
             "Today never loaded — the corpus probably failed to open"
@@ -24,11 +41,8 @@ final class WalkthroughTests: XCTestCase {
         // The daily hadith comes from the database, so its presence proves the
         // store opened and the day-of-year lookup resolved.
         XCTAssertTrue(app.staticTexts["Read in full"].waitForExistence(timeout: 20))
-        capture("02-today-loaded")
-
+        capture("02-today")
         openDailyHadith()
-        openBrowseAndIsnad()
-        openSearch()
     }
 
     private func openDailyHadith() {

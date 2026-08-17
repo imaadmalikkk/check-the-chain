@@ -189,13 +189,8 @@ struct HadithDetailView: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(Palette.inkFaint)
             }
-            .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Palette.surface, in: .rect(cornerRadius: 14))
-            .overlay {
-                RoundedRectangle(cornerRadius: 14)
-                    .strokeBorder(Palette.hairline, lineWidth: 0.5)
-            }
+            .cardSurface(padding: 16, radius: Radius.row)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("isnadLink")

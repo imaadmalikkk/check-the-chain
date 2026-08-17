@@ -67,6 +67,14 @@ final class SearchModel {
 
 struct SearchView: View {
     let corpus: Corpus
+    /// Switches to the Browse tab.
+    ///
+    /// The canvas needs its own way there. While the search tab is active iOS 26
+    /// collapses the entire tab group behind a single button, so on a cold
+    /// launch — which lands here — "Browse" does not exist on screen at all and
+    /// getting to it means tapping a collapsed control that gives no hint of
+    /// what it holds.
+    let showBrowse: () -> Void
 
     @Environment(AppModel.self) private var app
     @State private var model: SearchModel?
@@ -83,7 +91,11 @@ struct SearchView: View {
                 }
             }
             .background(Palette.ground)
-            .navigationTitle("Search")
+            // No title. The screen is a search field and a wordmark; a large
+            // "Search" heading above them would be labelling the obvious, and
+            // the reference designs put nothing in the top bar at all.
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(for: Route.self) { $0.destination(corpus: corpus) }
         }
         .searchable(
@@ -129,7 +141,7 @@ struct SearchView: View {
             if model.isSearching { searchingIndicator }
         }
         .overlay {
-            if model.query.isEmpty { prompt }
+            if model.query.isEmpty { prompt(model) }
         }
     }
 
@@ -168,23 +180,74 @@ struct SearchView: View {
             .padding(.top, 8)
     }
 
-    private var prompt: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "text.magnifyingglass")
-                .font(.system(size: 34, weight: .light))
-                .foregroundStyle(Palette.inkFaint)
-            Text("Search by meaning or wording")
-                .font(.callout)
+    /// Example queries, tapped to fill the field.
+    ///
+    /// One of each kind the two search legs are for: a verbatim fragment that
+    /// keyword search nails, and two paraphrases that only the vector leg finds.
+    /// They are examples, not features — the point is to show in three words
+    /// that you can type what you remember rather than what was written.
+    private static let suggestions: [(icon: String, text: String)] = [
+        ("quote.opening", "reward of deeds"),
+        ("house", "good neighbours"),
+        ("hand.raised", "forgiving others"),
+    ]
+
+    /// The opening screen: mostly empty, with the search field the only thing
+    /// asking to be used.
+    private func prompt(_ model: SearchModel) -> some View {
+        VStack(spacing: 0) {
+            Spacer()
+
+            Text("check the chain")
+                .font(.system(size: 36, weight: .light))
                 .foregroundStyle(Palette.inkMuted)
-            Text(app.isSemanticSearchReady
-                 ? "Paste a hadith you've been sent, or describe one."
-                 : "Preparing semantic search…")
+                .minimumScaleFactor(0.6)
+                .lineLimit(1)
+
+            Button(action: showBrowse) {
+                HStack(spacing: 4) {
+                    Text("Browse \(HadithCollection.all.count) collections")
+                    Image(systemName: "chevron.right").font(.caption2.weight(.semibold))
+                }
                 .font(.footnote)
-                .foregroundStyle(Palette.inkFaint)
-                .multilineTextAlignment(.center)
+                .foregroundStyle(Palette.inkMuted)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("browseFromCanvas")
+            .padding(.top, 14)
+
+            Spacer()
+
+            if !app.isSemanticSearchReady {
+                // Search still works while the model loads — it degrades to
+                // keyword-only — so this is a status line, not a blocker.
+                Text("Preparing semantic search…")
+                    .font(.footnote)
+                    .foregroundStyle(Palette.inkFaint)
+                    .padding(.bottom, 14)
+            }
+
+            ScrollView(.horizontal) {
+                HStack(spacing: 8) {
+                    ForEach(Self.suggestions, id: \.text) { suggestion in
+                        Button {
+                            model.query = suggestion.text
+                        } label: {
+                            Label(suggestion.text, systemImage: suggestion.icon)
+                                .font(.subheadline)
+                                .foregroundStyle(Palette.inkBody)
+                                .lineLimit(1)
+                                .chipSurface()
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 16)
+            }
+            .scrollIndicators(.hidden)
+            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+            .padding(.bottom, 12)
         }
-        .padding(.horizontal, 40)
-        .padding(.bottom, 80)
     }
 
     private func emptyState(_ model: SearchModel) -> some View {
