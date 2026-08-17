@@ -69,7 +69,7 @@ final class AppearanceTests: XCTestCase {
     func testLargestDynamicType() {
         let app = launch()
         capture(app, "xxxl-00-search-canvas")
-        XCTAssertTrue(openToday(app))
+        XCTAssertTrue(openToday(app), "The Today tab never showed a hadith of the day")
         capture(app, "xxxl-01-today")
 
         tap(app.tabButton("Browse"), "the Browse tab", in: app)
