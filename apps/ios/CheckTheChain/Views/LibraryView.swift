@@ -71,7 +71,12 @@ struct LibraryView: View {
             Toggle("Record history", isOn: $recordsHistory)
             Button("Clear history", systemImage: "trash", role: .destructive) {
                 Task {
-                    try? await corpus.library?.clearRecent()
+                    do {
+                        try await corpus.library?.clearRecent()
+                        errorMessage = nil
+                    } catch {
+                        errorMessage = SaveErrorPolicy.updateFailedMessage
+                    }
                     await reload()
                 }
             }
@@ -88,25 +93,38 @@ struct LibraryView: View {
         } else if refs.isEmpty {
             empty
         } else {
-            // A `List` rather than the `ScrollView`/`LazyVStack` used
-            // elsewhere in the app, specifically so Saved rows can carry a
-            // real `.swipeActions` — the sheet is otherwise the one place in
-            // the app you cannot unstar a hadith. Every default List surface
-            // (separators, row background, insets) is stripped below so it
-            // still reads as the same flat, cardSurface-on-ground rows as
-            // everywhere else, not as a system list.
-            List {
-                ForEach(refs, id: \.self) { ref in
-                    row(ref)
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
+            // `ScrollView`/`LazyVStack`, same as every other list in the app,
+            // rather than `List`. A `List` was tried so Saved rows could carry
+            // a real `.swipeActions`, but a `NavigationLink` inside a `List`
+            // draws a system disclosure chevron that `.buttonStyle(.plain)`
+            // does not suppress — it sat outside the card, on the ground
+            // colour, and it also ate ~30pt from the row so Saved cards were
+            // narrower than the identical cards everywhere else. Suppressing
+            // it means fighting `List` (there is no public modifier for it);
+            // getting `readableWidth()`, the vertical rhythm, and every
+            // stripped List surface back to matching every other screen is
+            // more code, permanently, to buy one gesture this screen is the
+            // only place in the app to use.
+            //
+            // `.savedMenu` — the long-press affordance already on every
+            // result card — covers removal instead: for a Saved row it always
+            // reads "Remove from Saved" and removes it (see `SavedMenu`'s doc
+            // comment for why the label is no longer state-dependent). That
+            // makes this screen's rows behave exactly like the identical card
+            // everywhere else, rather than inventing a second, sheet-only way
+            // to do the same thing.
+            ScrollView {
+                LazyVStack(spacing: 10) {
+                    ForEach(refs, id: \.self) { ref in
+                        row(ref)
+                    }
                 }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 40)
+                .readableWidth()
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
             .scrollEdgeEffectStyle(.soft, for: .top)
-            .readableWidth()
         }
     }
 
@@ -117,35 +135,12 @@ struct LibraryView: View {
                 HadithCard(hadith: hadith)
             }
             .buttonStyle(.plain)
-            .swipeActions(edge: .trailing) {
-                // Saved rows only. A Recent row is a log entry, not something
-                // you "remove" one at a time — "Clear history" in the
-                // overflow menu already covers wiping it, and a per-row
-                // delete here would just be a second, redundant way to do
-                // that for the one segment where an accidental swipe costs
-                // nothing but a log line.
-                if segment == .saved {
-                    Button(role: .destructive) {
-                        Task { await removeSaved(ref) }
-                    } label: {
-                        Label("Remove", systemImage: "bookmark.slash")
-                    }
-                }
+            .savedMenu(ref: ref, library: corpus.library) {
+                Task { await reload() }
             }
         } else {
             dangling(ref)
         }
-    }
-
-    private func removeSaved(_ ref: HadithRef) async {
-        guard let library = corpus.library else { return }
-        do {
-            try await library.removeSaved(ref)
-            errorMessage = nil
-        } catch {
-            errorMessage = SaveErrorPolicy.updateFailedMessage
-        }
-        await reload()
     }
 
     /// A saved hadith the corpus no longer has — renumbered or dropped by a
