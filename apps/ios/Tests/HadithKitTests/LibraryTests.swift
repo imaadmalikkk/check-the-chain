@@ -90,4 +90,21 @@ struct LibraryTests {
         #expect(corpus.hadithCount == 47_442)
         #expect(try await corpus.store.hadith(slug: "sahih-al-bukhari", number: "1") != nil)
     }
+
+    /// This is the test that fails if `library = libraryURL.flatMap { try?
+    /// Library(url: $0) }` in `Corpus.init` ever becomes `try`. Unlike
+    /// `libraryIsOptional` above, this gives `Corpus` a *non-nil* `libraryURL`
+    /// that `ModelContainer` cannot open — a directory, not a file — so the
+    /// `try?` swallow path is actually exercised. `Corpus.init` must not throw,
+    /// `library` must come back nil, and the rest of the corpus must still work.
+    @Test("A corpus survives a library URL that cannot be opened")
+    func libraryFailureIsSwallowed() async throws {
+        let unopenable = FileManager.default.temporaryDirectory
+
+        let corpus = try TestFixtures.corpus(libraryURL: unopenable)
+
+        #expect(corpus.library == nil)
+        #expect(corpus.hadithCount == 47_442)
+        #expect(try await corpus.store.hadith(slug: "sahih-al-bukhari", number: "1") != nil)
+    }
 }

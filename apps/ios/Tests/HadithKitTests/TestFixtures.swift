@@ -19,6 +19,21 @@ enum TestFixtures {
     static func corpus() throws -> Corpus { try sharedCorpus.get() }
     static func golden() throws -> Golden { try sharedGolden.get() }
 
+    /// A fresh (not cached) `Corpus` built through the designated initialiser so
+    /// a specific `libraryURL` can be forced — the convenience init resolves its
+    /// own. Used only by the test that proves a library which cannot be opened
+    /// is swallowed rather than propagated.
+    static func corpus(libraryURL: URL?) throws -> Corpus {
+        try Corpus(
+            databaseURL: resource("hadith", "sqlite", in: .main),
+            embeddingsURL: resource("embeddings", "bin", in: .main),
+            embeddingsMetadataURL: resource("embeddings", "json", in: .main),
+            modelURL: resource("MiniLM", "mlmodelc", in: .main),
+            vocabularyURL: resource("vocab", "txt", in: .main),
+            libraryURL: libraryURL
+        )
+    }
+
     static func vectorIndex() throws -> VectorIndex {
         try VectorIndex(
             binaryURL: try resource("embeddings", "bin", in: .main),
