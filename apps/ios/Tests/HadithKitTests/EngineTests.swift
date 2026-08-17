@@ -87,6 +87,32 @@ struct StoreTests {
         let dayOfYear = Int(date.timeIntervalSince(previousYearEnd) / 86_400)
         #expect(hadith.order == (year * 366 + dayOfYear) % 7276)
     }
+
+    @Test("Batch ref lookup resolves what exists and omits what doesn't")
+    func batchRefLookup() async throws {
+        let store = try TestFixtures.corpus().store
+        let real = HadithRef(collectionSlug: "sahih-al-bukhari", number: "1")
+        let missing = HadithRef(collectionSlug: "sahih-al-bukhari", number: "999999")
+
+        let found = try await store.hadith(refs: [real, missing])
+
+        #expect(found.count == 1)
+        #expect(found[real]?.number == "1")
+        // A saved hadith that is no longer in the corpus must be absent, not a
+        // crash and not a wrong row — the sheet renders it as a dangling entry.
+        #expect(found[missing] == nil)
+    }
+
+    @Test("Batch ref lookup chunks past SQLite's variable limit")
+    func batchRefLookupChunks() async throws {
+        let store = try TestFixtures.corpus().store
+        // 250 refs is 500 bound variables, past the 200-per-chunk boundary.
+        let refs = (1...250).map { HadithRef(collectionSlug: "sahih-al-bukhari", number: "\($0)") }
+
+        let found = try await store.hadith(refs: refs)
+
+        #expect(found.count == 250)
+    }
 }
 
 @Suite("Query handling")

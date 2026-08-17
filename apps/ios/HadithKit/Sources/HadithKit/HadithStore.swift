@@ -64,6 +64,46 @@ public final class HadithStore: Sendable {
         return Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0) })
     }
 
+    /// Resolves saved or recently viewed refs in as few queries as possible.
+    ///
+    /// Returns a dictionary and leaves ordering to the caller, matching
+    /// `hadith(ids:)`. A ref with no row is simply absent: that is how a saved
+    /// hadith which a later corpus renumbered or dropped reaches the UI, which
+    /// renders it as a dangling entry rather than quietly forgetting it.
+    public func hadith(refs: [HadithRef]) async throws -> [HadithRef: Hadith] {
+        guard !refs.isEmpty else { return [:] }
+
+        var found: [HadithRef: Hadith] = [:]
+        // 200 pairs is 400 bound variables, comfortably inside SQLite's default
+        // limit of 999. Saved is unbounded, so this is required, not theoretical.
+        for chunk in refs.chunked(into: 200) {
+            let predicate = Array(
+                repeating: "(collection_slug = ? AND hadith_number = ?)",
+                count: chunk.count
+            ).joined(separator: " OR ")
+
+            var arguments: [(any DatabaseValueConvertible)?] = []
+            arguments.reserveCapacity(chunk.count * 2)
+            for ref in chunk {
+                arguments.append(ref.collectionSlug)
+                arguments.append(ref.number)
+            }
+            let statementArguments = StatementArguments(arguments)
+
+            let rows: [Hadith] = try await dbQueue.read { db in
+                try Hadith.fetchAll(
+                    db,
+                    sql: "\(Self.selectColumns) WHERE \(predicate)",
+                    arguments: statementArguments
+                )
+            }
+            for row in rows {
+                found[HadithRef(collectionSlug: row.collectionSlug, number: row.number)] = row
+            }
+        }
+        return found
+    }
+
     // MARK: - Browsing
 
     public func page(slug: String, page: Int, pageSize: Int = 50) async throws -> Page<Hadith> {
@@ -188,6 +228,14 @@ public final class HadithStore: Sendable {
 
 private func databaseQuestionMarks(count: Int) -> String {
     Array(repeating: "?", count: count).joined(separator: ",")
+}
+
+extension Array {
+    fileprivate func chunked(into size: Int) -> [[Element]] {
+        stride(from: 0, to: count, by: size).map {
+            Array(self[$0..<Swift.min($0 + size, count)])
+        }
+    }
 }
 
 // MARK: - Row decoding
