@@ -5,15 +5,19 @@ import HadithKit
 ///
 /// A modifier applied where cards are used, rather than a parameter on
 /// `HadithCard`. The card stays a pure function of a hadith and knows nothing
-/// about persistence, and the two call sites that need this opt in.
+/// about persistence, and the call sites that need this opt in.
 ///
 /// No star is drawn *on* the card. That would put a glyph on every row for a
 /// state that is false almost always.
 private struct SavedMenu: ViewModifier {
     let ref: HadithRef
     let library: Library?
+    /// Fires after a successful save or remove. `LibraryView` uses this to
+    /// reload its Saved list immediately — nothing else about *this*
+    /// screen's identity changes when the ref goes in or out of the store,
+    /// so nothing else would tell the row's owner to refresh.
+    var onChange: (() -> Void)?
 
-    @State private var isSaved = false
     @State private var errorMessage: String?
 
     func body(content: Content) -> some View {
@@ -25,72 +29,74 @@ private struct SavedMenu: ViewModifier {
         if let library {
             content
                 .contextMenu {
+                    // Two fixed items, not one label picked from cached
+                    // state. The previous version read `isSaved` — refreshed
+                    // by a `.task` attached right here — to choose between
+                    // "Save" and "Remove from Saved". That closed most of the
+                    // gap but not all of it: the `.task` is an async actor
+                    // read racing a ~0.5s context-menu lift animation, and
+                    // `.contextMenu`'s content closure is evaluated (and, per
+                    // reports, can be snapshotted for the lift) before an
+                    // async read that hasn't landed yet has any chance to
+                    // update it. A stale label here isn't cosmetic: this
+                    // toggles a real save, so a button that still reads
+                    // "Save" because the refresh hasn't landed yet *deletes*
+                    // the favourite it claims to create.
+                    //
+                    // There is no version of "pick the one correct label"
+                    // that isn't subject to that same race — the content has
+                    // to be known before presentation, and truth is only
+                    // knowable by an async read. So this stops trying to show
+                    // one correct label and shows both fixed outcomes
+                    // instead. Each one's label is a description of exactly
+                    // what tapping it does, unconditionally, so neither can
+                    // ever disagree with its own action. Whichever one
+                    // doesn't apply to the current state is a no-op rather
+                    // than a wrong answer: `save` on an already-saved ref is
+                    // an upsert that only bumps `savedAt` (see its doc
+                    // comment), and `removeSaved` on a ref that isn't saved
+                    // is a no-op by construction. Nothing here depends on
+                    // `isSaved` being fresh, so there is no gap left to race.
                     Button {
-                        Task { await toggle(library: library) }
+                        Task { await save(library: library) }
                     } label: {
-                        Label(
-                            isSaved ? "Remove from Saved" : "Save",
-                            systemImage: isSaved ? "bookmark.slash" : "bookmark"
-                        )
+                        Label("Save", systemImage: "bookmark")
                     }
-                    // The row this modifier is attached to lives in a
-                    // `LazyVStack` that does not recreate on `Back` — a
-                    // detail-page star, then Back, then a long-press on the
-                    // very same row, and the outer `.task` below never
-                    // reruns, so `isSaved` can be stale by the time this menu
-                    // is shown. `.contextMenu` has no "will present" hook,
-                    // but SwiftUI rebuilds a context menu's content fresh on
-                    // every presentation, so a `.task` *inside* the menu
-                    // content — attached here, to the button itself — fires
-                    // again each time the menu is about to appear and
-                    // refreshes the cache before the label is read. That is
-                    // what actually closes the gap; the `else` branch in
-                    // `toggle(library:)` below is the second half, for
-                    // correctness of the write itself rather than the label.
-                    .task { await refresh(library: library) }
+                    Button(role: .destructive) {
+                        Task { await remove(library: library) }
+                    } label: {
+                        Label("Remove from Saved", systemImage: "bookmark.slash")
+                    }
                 }
-                .task { await refresh(library: library) }
                 .saveErrorAlert($errorMessage)
         } else {
             content
         }
     }
 
-    private func refresh(library: Library) async {
-        isSaved = (try? await library.isSaved(ref)) ?? isSaved
+    private func save(library: Library) async {
+        do {
+            try await library.save(ref)
+            errorMessage = nil
+            onChange?()
+        } catch {
+            errorMessage = SaveErrorPolicy.updateFailedMessage
+        }
     }
 
-    /// Re-reads truth immediately before deciding what to do, and branches
-    /// explicitly on that fresh read rather than on the cached `isSaved` —
-    /// the value that can go stale. A blind `toggleSaved` would still write
-    /// the store correctly (it makes the same fresh check internally, and
-    /// nothing here changes what ends up on disk), but writing the read out
-    /// here means the button's behaviour is never described in terms of, or
-    /// coupled to, the same cache whose staleness is what caused the bug in
-    /// the first place — and it lets this branch use `save`/`removeSaved`
-    /// directly, so "what truth said" and "what happened" are the same
-    /// statement rather than two implementations that have to agree.
-    private func toggle(library: Library) async {
+    private func remove(library: Library) async {
         do {
-            let current = try await library.isSaved(ref)
-            if current {
-                try await library.removeSaved(ref)
-            } else {
-                try await library.save(ref)
-            }
-            isSaved = !current
+            try await library.removeSaved(ref)
             errorMessage = nil
+            onChange?()
         } catch {
-            // Self-correcting: a throw here is not proof the write didn't
-            // happen, so re-read rather than assume it failed cleanly.
-            isSaved = (try? await library.isSaved(ref)) ?? isSaved
             errorMessage = SaveErrorPolicy.updateFailedMessage
         }
     }
 }
 
 extension View {
-    func savedMenu(ref: HadithRef, library: Library?) -> some View {
-        modifier(SavedMenu(ref: ref, library: library))
+    func savedMenu(ref: HadithRef, library: Library?, onChange: (() -> Void)? = nil) -> some View {
+        modifier(SavedMenu(ref: ref, library: library, onChange: onChange))
     }
 }

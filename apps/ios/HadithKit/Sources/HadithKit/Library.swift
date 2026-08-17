@@ -102,6 +102,14 @@ public actor Library {
 
     /// Idempotent by construction: `#Unique` turns a colliding insert into an
     /// update, so this refreshes `savedAt` rather than adding a second row.
+    ///
+    /// That refresh is user-visible: calling this on a ref that is already
+    /// saved does not no-op, it bumps `savedAt` to now, which jumps that
+    /// entry to the top of `saved()`'s newest-first order. Harmless when the
+    /// caller only cares whether the ref ends up saved — which is the case in
+    /// `SavedMenu`, where "Save" is always offered even on an already-saved
+    /// row and tapping it there is a deliberate no-op on *state* — but worth
+    /// knowing before calling this from anywhere that cares about order too.
     public func save(_ ref: HadithRef) throws {
         modelContext.insert(SavedHadith(ref: ref, savedAt: Date()))
         try modelContext.save()
