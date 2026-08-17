@@ -35,7 +35,11 @@ private struct MainTabs: View {
     /// on the simulator (`scripts/uitest.sh`) and read back here.
     @Environment(\.colorScheme) private var colorScheme
 
+    @Environment(AppModel.self) private var app
+
     var body: some View {
+        @Bindable var savedState = app.savedState
+
         TabView(selection: $section) {
             Tab("Today", systemImage: "sun.horizon", value: Section.today) {
                 TodayView(corpus: corpus)
@@ -53,6 +57,16 @@ private struct MainTabs: View {
         // comes back on scroll up.
         .tabBarMinimizeBehavior(.onScrollDown)
         .accessibilityIdentifier(colorScheme == .dark ? "appearance-dark" : "appearance-light")
+        // The one place `SavedState.errorMessage` is surfaced. Mounted once,
+        // here, rather than once per screen: every screen under this tab
+        // view shares the same `SavedState`, and attaching this same alert
+        // at every context-menu row and every detail-page star would mean
+        // several `.alert` instances simultaneously bound to the same
+        // property — undefined when more than one is presented at once.
+        // One alert, at the root of the content that's always mounted while
+        // any of those surfaces can fire, is the version that can't collide
+        // with itself.
+        .saveErrorAlert($savedState.errorMessage)
     }
 }
 

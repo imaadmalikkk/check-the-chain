@@ -22,6 +22,12 @@ final class AppModel {
     private(set) var state: State = .loading
     private(set) var isSemanticSearchReady = false
 
+    /// The one saved-hadith cache for the whole app. Lives here rather than
+    /// on `Corpus` because it is UI-facing main-actor state — `Corpus` and
+    /// everything under it stays plain `Sendable` value/actor types so
+    /// `HadithKit` stays UI-free.
+    let savedState = SavedState()
+
     var corpus: Corpus? {
         if case .ready(let corpus) = state { return corpus }
         return nil
@@ -34,6 +40,10 @@ final class AppModel {
             let corpus = try await Task.detached(priority: .userInitiated) {
                 try Corpus()
             }.value
+            // Hydrated before `state` flips to `.ready`, so the first frame
+            // of UI already has the real saved set — no flash from unstarred
+            // to starred once a late hydration lands.
+            await savedState.configure(library: corpus.library)
             state = .ready(corpus)
 
             await corpus.embedder.warmUp()
