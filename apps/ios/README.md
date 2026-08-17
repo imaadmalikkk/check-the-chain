@@ -38,7 +38,13 @@ text size, and every screen attaches a screenshot. The appearance tests assert
 which appearance actually resolved, so a misconfigured simulator fails loudly
 instead of quietly passing in the wrong mode.
 
-Signing is off (`CODE_SIGNING_ALLOWED: NO`) — simulator only. Set `DEVELOPMENT_TEAM` in `project.yml` and flip those flags when there's an Apple Developer account.
+Signing is on: `project.yml` sets `DEVELOPMENT_TEAM` and `CODE_SIGN_IDENTITY: "Apple Development"` with `CODE_SIGN_STYLE: Automatic`, and the app has been built and run on a physical iPhone. The first device build needs `-allowProvisioningUpdates` so Xcode can register the bundle ID and issue the profile:
+
+```bash
+xcodebuild -scheme CheckTheChain -destination 'platform=iOS,name=<your device>' -allowProvisioningUpdates build
+```
+
+Both `HadithKitTests` and `CheckTheChainUITests` set `GENERATE_INFOPLIST_FILE: YES` in `project.yml` — a test bundle has to be code-signed once signing is on, and it cannot be signed without an Info.plist, which nothing generated while signing was off.
 
 ## Layout
 

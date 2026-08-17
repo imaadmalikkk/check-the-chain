@@ -31,10 +31,12 @@ iOS:
 ```bash
 cd apps/ios && xcodegen generate          # regenerate CheckTheChain.xcodeproj from project.yml
 xcodebuild -scheme CheckTheChain -destination 'platform=iOS Simulator,OS=26.2,name=iPhone 17 Pro' build
-xcodebuild test -scheme HadithKit -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+xcodebuild test -project CheckTheChain.xcodeproj -scheme CheckTheChain \
+  -destination 'platform=iOS Simulator,OS=26.2,name=iPhone 17 Pro' \
+  -only-testing:HadithKitTests
 ```
 
-No JS test framework is configured; `npm run build` is the web validation step. The iOS engine has XCTest coverage in `apps/ios/HadithKit/Tests`.
+No JS test framework is configured; `npm run build` is the web validation step. The iOS engine has swift-testing coverage in `apps/ios/Tests/HadithKitTests` (hosted by the `CheckTheChain` scheme — `HadithKit` is the SPM package's auto-generated scheme and has no test target of its own, so `xcodebuild test -scheme HadithKit` fails). Only `apps/ios/Tests/CheckTheChainUITests` is XCTest.
 
 Data pipeline scripts (run with `npx tsx` from `apps/web`):
 - `scripts/seed-convex.ts` — load hadith JSON into Convex. **Clears the table first**, so it destroys embeddings and gradings — never run it to change one derived field
