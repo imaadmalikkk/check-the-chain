@@ -1,0 +1,112 @@
+import Foundation
+import SwiftData
+
+/// The stable identity of a hadith.
+///
+/// Deliberately not a row id. `hadith.id` is dense and assigned in canonical
+/// order by the pipeline because it doubles as the row index into
+/// `embeddings.bin`, so adding a single collection renumbers every row after it.
+/// A saved row id would then silently point at a different narration after the
+/// next pipeline run — no crash, no error, just the wrong scripture. The
+/// collection slug and hadith number are what the corpus, the `Route` cases and
+/// the web app's URLs all key on, and they do not move.
+public struct HadithRef: Hashable, Sendable, Codable {
+    public let collectionSlug: String
+    public let number: String
+
+    public init(collectionSlug: String, number: String) {
+        self.collectionSlug = collectionSlug
+        self.number = number
+    }
+}
+
+@Model
+final class SavedHadith {
+    #Unique<SavedHadith>([\.collectionSlug, \.number])
+
+    var collectionSlug: String = ""
+    var number: String = ""
+    var savedAt: Date = Date.distantPast
+
+    init(ref: HadithRef, savedAt: Date) {
+        self.collectionSlug = ref.collectionSlug
+        self.number = ref.number
+        self.savedAt = savedAt
+    }
+
+    var ref: HadithRef { HadithRef(collectionSlug: collectionSlug, number: number) }
+}
+
+/// What the app remembers between launches, and the only place it can lose user
+/// data. It lives in the package rather than the app target so it is reachable
+/// from `HadithKitTests` — the one stateful thing in the product should not also
+/// be the one thing with no unit tests.
+///
+/// `@ModelActor` rather than a hand-written actor: `ModelContext` is not
+/// `Sendable`, and the macro exists to bind a context to an actor's executor.
+/// It generates `init(modelContainer:)`, so the URL-taking initialiser below is
+/// a convenience that builds the container first.
+@ModelActor
+public actor Library {
+    /// Public because it is the default value of a public parameter, which has
+    /// to be resolvable at every call site.
+    public static let recentCap = 100
+
+    /// `url` of nil gives an in-memory store, which is what the tests use.
+    public init(url: URL?) throws {
+        let configuration = if let url {
+            ModelConfiguration(url: url)
+        } else {
+            ModelConfiguration(isStoredInMemoryOnly: true)
+        }
+        let container = try ModelContainer(
+            for: SavedHadith.self,
+            configurations: configuration
+        )
+        self.init(modelContainer: container)
+    }
+
+    // MARK: - Saved
+
+    public func isSaved(_ ref: HadithRef) throws -> Bool {
+        try existing(ref) != nil
+    }
+
+    /// Returns the new state.
+    public func toggleSaved(_ ref: HadithRef) throws -> Bool {
+        if let row = try existing(ref) {
+            modelContext.delete(row)
+            try modelContext.save()
+            return false
+        }
+        try save(ref)
+        return true
+    }
+
+    /// Idempotent by construction: `#Unique` turns a colliding insert into an
+    /// update, so this refreshes `savedAt` rather than adding a second row.
+    public func save(_ ref: HadithRef) throws {
+        modelContext.insert(SavedHadith(ref: ref, savedAt: Date()))
+        try modelContext.save()
+    }
+
+    /// Newest first.
+    public func saved() throws -> [HadithRef] {
+        let descriptor = FetchDescriptor<SavedHadith>(
+            sortBy: [SortDescriptor(\.savedAt, order: .reverse)]
+        )
+        return try modelContext.fetch(descriptor).map(\.ref)
+    }
+
+    private func existing(_ ref: HadithRef) throws -> SavedHadith? {
+        // `#Predicate` cannot reach through a struct, so the components are
+        // bound to locals first.
+        let slug = ref.collectionSlug
+        let number = ref.number
+        var descriptor = FetchDescriptor<SavedHadith>(
+            predicate: #Predicate { $0.collectionSlug == slug && $0.number == number }
+        )
+        descriptor.fetchLimit = 1
+        return try modelContext.fetch(descriptor).first
+    }
+}
