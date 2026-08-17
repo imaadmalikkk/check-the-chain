@@ -20,12 +20,13 @@ settings:
     SWIFT_VERSION: "6.0"
     SWIFT_STRICT_CONCURRENCY: complete
     ENABLE_USER_SCRIPT_SANDBOXING: YES
-    DEVELOPMENT_TEAM: ""
+    # Device builds. Xcode registers the bundle IDs and issues the profiles on
+    # first build given `-allowProvisioningUpdates`; nothing here is a secret —
+    # a team ID ships inside every signed app. Change it to build under a
+    # different account.
+    DEVELOPMENT_TEAM: CYA5D2KJ75
     CODE_SIGN_STYLE: Automatic
-    # Simulator-only for now. Set DEVELOPMENT_TEAM when an Apple Developer
-    # account exists and device builds are needed.
-    CODE_SIGNING_REQUIRED: NO
-    CODE_SIGNING_ALLOWED: NO
+    CODE_SIGN_IDENTITY: "Apple Development"
   configs:
     Debug:
       # Optimize dependencies (HadithKit, GRDB) even in Debug. The vector scan
@@ -110,6 +111,11 @@ targets:
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/CheckTheChain.app/CheckTheChain"
         BUNDLE_LOADER: "$(TEST_HOST)"
         PRODUCT_BUNDLE_IDENTIFIER: com.checkthechain.app.tests
+        # A test bundle has to be signed once signing is on, and it cannot be
+        # signed without an Info.plist. Nothing generated one while signing was
+        # disabled, so enabling device builds broke every simulator test run
+        # with "Cannot code sign because the target does not have an Info.plist".
+        GENERATE_INFOPLIST_FILE: YES
 
   CheckTheChainUITests:
     type: bundle.ui-testing
@@ -122,6 +128,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.checkthechain.app.uitests
         TEST_TARGET_NAME: CheckTheChain
+        GENERATE_INFOPLIST_FILE: YES
 
 schemes:
   CheckTheChain:
