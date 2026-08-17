@@ -81,6 +81,7 @@ Everything runs on-device. No network calls anywhere in the app.
   - `VectorIndex` — mmap'd int8 embedding matrix, SIMD dot-product scan over 47k rows
   - `SearchEngine` — fuses FTS + vector with RRF (K=60), mirroring `apps/web/convex/hadith.ts`
   - `NarratorName` — renders Arabic isnad entries in English. The corpus has no English narrator field, so this is on-device transliteration: a 330-token lexicon covering 85% of chain tokens, plus rules for the article, `ibn`/`Abu`/`Abd al-`, and a vowel-inserting fallback
+  - `Library` (`@ModelActor`) — SwiftData store for starred hadith and the last 100 viewed. Keyed on `(collection_slug, hadith_number)`, **never on the row id** — row ids are reassigned by the pipeline. Local only, no CloudKit. `Corpus.library` is optional and nothing else depends on it.
 - **`CheckTheChain`** — SwiftUI app target. iOS 26 `TabView` with `Tab(role: .search)`.
 
 **Parity is enforced, not assumed.** `HadithKitTests` replays golden queries captured from the live web app; the offline engine must reproduce the same top-10. Any change to ranking, quantization, or the Core ML conversion must keep that test green.

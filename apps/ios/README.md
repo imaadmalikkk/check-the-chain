@@ -125,6 +125,20 @@ The ground is now `#F2F2F3`. A white card is simply *lighter than the page*, so:
 
 Colour appears in exactly one place: the grading badge. That is the answer to "is this hadith real", and it is the only thing on screen that earns a hue.
 
+## What the app remembers
+
+Until recently: nothing. No SwiftData, no `UserDefaults`, no `@AppStorage` — the only `FileManager` use was reading bundled resources, and every launch was identical to the last.
+
+`Library` (in HadithKit) now stores two things locally: hadith you starred, and the last 100 you opened.
+
+- **Keyed on `(collection_slug, hadith_number)`, never on the row id.** Row ids are dense and assigned in canonical order because they double as row indexes into `embeddings.bin`, so adding one collection renumbers everything after it. Saved row ids would silently repoint at different narrations on the next `npm run pipeline` — no crash, just the wrong scripture.
+- **Local only, and that is a decision.** CloudKit would give live iPhone↔iPad sync and end the claim at the top of this file. A store in Application Support is included in iOS device backups, so favourites survive a new phone anyway; live sync is what is given up.
+- **Nothing depends on it.** `Corpus.library` is optional. If the store will not open, the bookmark icons disappear and the app is exactly what it was before. A corrupt favourites store cannot take down search.
+- **A dangling ref renders as a row.** If a later corpus drops or renumbers a hadith, the saved entry says so and offers to remove itself, rather than quietly vanishing.
+- **Recent is capped at 100 and pruned on write**, so it cannot grow without bound on a device nobody tidies.
+
+The history log can be cleared, and switched off, from the overflow menu in the sheet. Reading history in a religious app is sensitive: someone researching a ruling on a shared iPad should not have to discover that a log exists.
+
 ## Liquid Glass
 
 The rule Apple states and most apps break: **glass belongs on controls floating above content, never behind body text.** A blurred backdrop under a paragraph of hadith would look modern and read worse, and reading is the only thing this app does.
@@ -209,7 +223,6 @@ The honest trade: `.ultraThinMaterial` approximates Liquid Glass but does not ma
 Out of scope for v1, listed so the boundary is explicit rather than forgotten:
 
 - **AI chat over retrieved hadith** via the Foundation Models framework. On-device, free, private — and the closest thing to a real differentiator. Needs a capability fallback: Apple Intelligence requires iPhone 15 Pro or newer.
-- **Bookmarks and reading history** (SwiftData). Table stakes for a reference app; doesn't exist on web either.
 - **Widgets, daily notification, share cards.**
 - **Arabic full-text search** — a second FTS5 table with `remove_diacritics 2`. Cheap to add and genuinely useful for a corpus that is 71% Arabic by volume.
 - **Universal links.** `Route` already mirrors the web app's URL shapes, so this is mostly an entitlement and a path parser.
