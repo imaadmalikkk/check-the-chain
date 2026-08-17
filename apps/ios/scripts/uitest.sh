@@ -44,6 +44,11 @@ run_suite "$DEVICE" dark  medium CheckTheChainUITests/AppearanceTests/testDarkMo
 run_suite "$DEVICE" light "$XXXL" CheckTheChainUITests/AppearanceTests/testLargestDynamicType
 run_suite "$DEVICE" light medium CheckTheChainUITests/AppearanceTests/testLongestAttribution
 
+# Persistence has to be checked on a clean install, or a store left behind by a
+# previous run makes the test pass without proving anything.
+xcrun simctl uninstall "$DEVICE" com.checkthechain.app 2>/dev/null || true
+run_suite "$DEVICE" light medium CheckTheChainUITests/LibraryUITests
+
 # iPad matters here because the app ships for it (TARGETED_DEVICE_FAMILY 1,2)
 # and an unconstrained layout sets hadith at ~150 characters per line on a 13"
 # screen. `readableWidth()` caps that; this is what keeps it capped.
