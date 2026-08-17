@@ -22,11 +22,20 @@ final class LibraryUITests: XCTestCase {
 
         // Bukhari 1 is reached through Browse, which is a known-stable path.
         tap(app.tabButton("Browse"), "the Browse tab", in: app)
-        XCTAssertTrue(app.staticTexts["Sahih al-Bukhari"].waitForExistence(timeout: 10))
+        XCTAssertTrue(
+            app.staticTexts["Sahih al-Bukhari"].waitForExistence(timeout: 10),
+            "Sahih al-Bukhari never appeared in the collection list"
+        )
         app.staticTexts["Sahih al-Bukhari"].tap()
-        XCTAssertTrue(app.staticTexts["Revelation"].waitForExistence(timeout: 10))
+        XCTAssertTrue(
+            app.staticTexts["Revelation"].waitForExistence(timeout: 10),
+            "Revelation never appeared in Bukhari's chapter list"
+        )
         app.staticTexts["Revelation"].tap()
-        XCTAssertTrue(app.staticTexts["Sahih al-Bukhari 1"].waitForExistence(timeout: 10))
+        XCTAssertTrue(
+            app.staticTexts["Sahih al-Bukhari 1"].waitForExistence(timeout: 10),
+            "Sahih al-Bukhari 1 never appeared in the Revelation chapter"
+        )
         app.staticTexts["Sahih al-Bukhari 1"].tap()
 
         let star = app.buttons["saveToggle"]
