@@ -37,6 +37,23 @@ final class SavedHadith {
     var ref: HadithRef { HadithRef(collectionSlug: collectionSlug, number: number) }
 }
 
+@Model
+final class ViewedHadith {
+    #Unique<ViewedHadith>([\.collectionSlug, \.number])
+
+    var collectionSlug: String = ""
+    var number: String = ""
+    var viewedAt: Date = Date.distantPast
+
+    init(ref: HadithRef, viewedAt: Date) {
+        self.collectionSlug = ref.collectionSlug
+        self.number = ref.number
+        self.viewedAt = viewedAt
+    }
+
+    var ref: HadithRef { HadithRef(collectionSlug: collectionSlug, number: number) }
+}
+
 /// What the app remembers between launches, and the only place it can lose user
 /// data. It lives in the package rather than the app target so it is reachable
 /// from `HadithKitTests` — the one stateful thing in the product should not also
@@ -60,7 +77,7 @@ public actor Library {
             ModelConfiguration(isStoredInMemoryOnly: true)
         }
         let container = try ModelContainer(
-            for: SavedHadith.self,
+            for: SavedHadith.self, ViewedHadith.self,
             configurations: configuration
         )
         self.init(modelContainer: container)
@@ -108,5 +125,47 @@ public actor Library {
         )
         descriptor.fetchLimit = 1
         return try modelContext.fetch(descriptor).first
+    }
+
+    // MARK: - Recently viewed
+
+    /// Failures are swallowed on purpose. Not logging a view is invisible to
+    /// someone who is reading, it cannot corrupt anything they asked for, and an
+    /// error here must not interrupt them.
+    public func recordView(_ ref: HadithRef) {
+        do {
+            modelContext.insert(ViewedHadith(ref: ref, viewedAt: Date()))
+            try modelContext.save()
+            try prune()
+        } catch {
+            // Intentionally ignored — see above.
+        }
+    }
+
+    /// Newest first.
+    public func recent(limit: Int = Library.recentCap) throws -> [HadithRef] {
+        var descriptor = FetchDescriptor<ViewedHadith>(
+            sortBy: [SortDescriptor(\.viewedAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = limit
+        return try modelContext.fetch(descriptor).map(\.ref)
+    }
+
+    public func clearRecent() throws {
+        try modelContext.delete(model: ViewedHadith.self)
+        try modelContext.save()
+    }
+
+    /// Pruned on write rather than on read, so the store cannot grow without
+    /// bound on a device whose owner never opens the Recent list.
+    private func prune() throws {
+        var descriptor = FetchDescriptor<ViewedHadith>(
+            sortBy: [SortDescriptor(\.viewedAt, order: .reverse)]
+        )
+        descriptor.fetchOffset = Library.recentCap
+        let stale = try modelContext.fetch(descriptor)
+        guard !stale.isEmpty else { return }
+        for row in stale { modelContext.delete(row) }
+        try modelContext.save()
     }
 }

@@ -42,4 +42,41 @@ struct LibraryTests {
 
         #expect(try await library.saved() == [muslim1, bukhari1])
     }
+
+    @Test("Re-opening a hadith reorders Recent rather than duplicating it")
+    func recentDedupes() async throws {
+        let library = try Library(url: nil)
+        await library.recordView(bukhari1)
+        try await Task.sleep(for: .milliseconds(10))
+        await library.recordView(muslim1)
+        try await Task.sleep(for: .milliseconds(10))
+        await library.recordView(bukhari1)
+
+        #expect(try await library.recent() == [bukhari1, muslim1])
+    }
+
+    @Test("Recent is pruned at the cap")
+    func recentPrunes() async throws {
+        let library = try Library(url: nil)
+        for index in 0...Library.recentCap {
+            await library.recordView(HadithRef(collectionSlug: "sahih-al-bukhari", number: "\(index)"))
+        }
+
+        let recent = try await library.recent(limit: Library.recentCap * 2)
+        #expect(recent.count == Library.recentCap)
+        // The oldest is the one that went, not an arbitrary one.
+        #expect(!recent.contains(HadithRef(collectionSlug: "sahih-al-bukhari", number: "0")))
+    }
+
+    @Test("Clearing history leaves the starred list alone")
+    func clearRecentKeepsSaved() async throws {
+        let library = try Library(url: nil)
+        try await library.save(bukhari1)
+        await library.recordView(bukhari1)
+
+        try await library.clearRecent()
+
+        #expect(try await library.recent().isEmpty)
+        #expect(try await library.saved() == [bukhari1])
+    }
 }
