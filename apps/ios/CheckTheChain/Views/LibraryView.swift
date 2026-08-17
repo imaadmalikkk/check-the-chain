@@ -16,13 +16,14 @@ struct LibraryView: View {
     }
 
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("recordsHistory") private var recordsHistory = true
+    @AppStorage(PreferenceKey.recordsHistory) private var recordsHistory = true
 
     @State private var segment: Segment = .saved
     @State private var refs: [HadithRef] = []
     @State private var resolved: [HadithRef: Hadith] = [:]
     @State private var isLoading = true
     @State private var path = NavigationPath()
+    @State private var errorMessage: String?
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -40,6 +41,18 @@ struct LibraryView: View {
                 .safeAreaInset(edge: .top) { picker }
         }
         .task(id: segment) { await reload() }
+        // `.task(id: segment)` is on the stack, not the pushed detail view —
+        // pushing a hadith *inside* this sheet doesn't change `segment` and
+        // doesn't dismiss the stack, so it never reruns on its own. Unstar
+        // from the pushed detail page, come back with the system back
+        // button, and without this the row would still be sitting here.
+        // `path` is already `@State` right here, so returning to root is
+        // exactly the moment this can catch.
+        .onChange(of: path) { _, newPath in
+            guard newPath.isEmpty else { return }
+            Task { await reload() }
+        }
+        .saveErrorAlert($errorMessage)
     }
 
     private var picker: some View {
@@ -75,18 +88,25 @@ struct LibraryView: View {
         } else if refs.isEmpty {
             empty
         } else {
-            ScrollView {
-                LazyVStack(spacing: 10) {
-                    ForEach(refs, id: \.self) { ref in
-                        row(ref)
-                    }
+            // A `List` rather than the `ScrollView`/`LazyVStack` used
+            // elsewhere in the app, specifically so Saved rows can carry a
+            // real `.swipeActions` — the sheet is otherwise the one place in
+            // the app you cannot unstar a hadith. Every default List surface
+            // (separators, row background, insets) is stripped below so it
+            // still reads as the same flat, cardSurface-on-ground rows as
+            // everywhere else, not as a system list.
+            List {
+                ForEach(refs, id: \.self) { ref in
+                    row(ref)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
-                .padding(.bottom, 40)
-                .readableWidth()
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
             .scrollEdgeEffectStyle(.soft, for: .top)
+            .readableWidth()
         }
     }
 
@@ -97,9 +117,35 @@ struct LibraryView: View {
                 HadithCard(hadith: hadith)
             }
             .buttonStyle(.plain)
+            .swipeActions(edge: .trailing) {
+                // Saved rows only. A Recent row is a log entry, not something
+                // you "remove" one at a time — "Clear history" in the
+                // overflow menu already covers wiping it, and a per-row
+                // delete here would just be a second, redundant way to do
+                // that for the one segment where an accidental swipe costs
+                // nothing but a log line.
+                if segment == .saved {
+                    Button(role: .destructive) {
+                        Task { await removeSaved(ref) }
+                    } label: {
+                        Label("Remove", systemImage: "bookmark.slash")
+                    }
+                }
+            }
         } else {
             dangling(ref)
         }
+    }
+
+    private func removeSaved(_ ref: HadithRef) async {
+        guard let library = corpus.library else { return }
+        do {
+            try await library.removeSaved(ref)
+            errorMessage = nil
+        } catch {
+            errorMessage = SaveErrorPolicy.updateFailedMessage
+        }
+        await reload()
     }
 
     /// A saved hadith the corpus no longer has — renumbered or dropped by a
@@ -115,16 +161,18 @@ struct LibraryView: View {
                 .foregroundStyle(Palette.inkMuted)
             Button("Remove") {
                 Task {
-                    // Segment-specific: under Recent the ref lives in
-                    // `ViewedHadith`, not `SavedHadith`, and `toggleSaved`
-                    // cannot touch it — worse, since a dangling Recent ref is
-                    // essentially never also saved, calling `toggleSaved` here
-                    // would *insert* a bogus Saved row instead of removing
-                    // anything. Each segment's row must clear the store it
-                    // actually came from.
-                    switch segment {
-                    case .saved: _ = try? await corpus.library?.toggleSaved(ref)
-                    case .recent: try? await corpus.library?.removeRecent(ref)
+                    guard let library = corpus.library else { return }
+                    do {
+                        // Segment-specific: under Recent the ref lives in
+                        // `ViewedHadith`, not `SavedHadith`. Each segment's
+                        // row must clear the store it actually came from.
+                        switch segment {
+                        case .saved: try await library.removeSaved(ref)
+                        case .recent: try await library.removeRecent(ref)
+                        }
+                        errorMessage = nil
+                    } catch {
+                        errorMessage = SaveErrorPolicy.updateFailedMessage
                     }
                     await reload()
                 }
