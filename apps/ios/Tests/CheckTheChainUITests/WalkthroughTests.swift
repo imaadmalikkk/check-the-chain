@@ -26,6 +26,7 @@ final class WalkthroughTests: XCTestCase {
 
         openToday()
         openBrowseAndIsnad()
+        openLibrary()
         openSearch()
     }
 
@@ -83,8 +84,43 @@ final class WalkthroughTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Source"].exists)
         capture("08-isnad")
 
-        app.navigationBars.buttons.element(boundBy: 0).tap()
-        app.navigationBars.buttons.element(boundBy: 0).tap()
+        // Pop all the way back to the Browse tab root — isnad → detail →
+        // chapter → collection → root — rather than the two taps that used to
+        // stop at the chapter view. `openLibrary()` below needs a tab root:
+        // the bookmark toolbar item lives on `TodayView`, `BrowseView`, and
+        // `SearchView`, not on `ChapterView`.
+        for _ in 0..<4 {
+            app.navigationBars.buttons.element(boundBy: 0).tap()
+        }
+    }
+
+    /// Nothing else in the suite ever presents this sheet — `libraryButton`
+    /// otherwise only appears in `LibraryUITests`, which doesn't screenshot
+    /// it — so this is the coverage that would have caught the `List`
+    /// migration drawing a system disclosure chevron on every row.
+    private func openLibrary() {
+        tap(app.buttons["libraryButton"], "the library button", in: app)
+        XCTAssertTrue(app.navigationBars.firstMatch.waitForExistence(timeout: 10))
+
+        // Saved starts empty — nothing in this walkthrough stars a hadith —
+        // so the default segment should show its empty state.
+        XCTAssertTrue(
+            app.staticTexts["Nothing saved yet"].waitForExistence(timeout: 10),
+            "Saved should show its empty state — nothing in this walkthrough stars a hadith"
+        )
+        capture("09-library-saved")
+
+        // Recent isn't empty by this point — Today and Bukhari 1 were both
+        // opened above, and opening a hadith records it — so this segment
+        // should list real rows, not its empty state.
+        tap(app.buttons["Recent"], "the Recent segment", in: app)
+        XCTAssertTrue(
+            app.staticTexts["Sahih al-Bukhari 1"].waitForExistence(timeout: 10),
+            "Recent should list Bukhari 1, opened earlier in this walkthrough"
+        )
+        capture("10-library-recent")
+
+        tap(app.buttons["Done"], "Done", in: app)
     }
 
     private func openSearch() {
@@ -92,7 +128,7 @@ final class WalkthroughTests: XCTestCase {
 
         let field = app.searchFields.firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 10), "Search field never appeared")
-        capture("09-search-empty")
+        capture("11-search-empty")
 
         field.tap()
         field.typeText("kindness to neighbours")
@@ -106,7 +142,7 @@ final class WalkthroughTests: XCTestCase {
                 .waitForExistence(timeout: 30),
             "No scored results appeared for a query that should match"
         )
-        capture("10-search-results")
+        capture("12-search-results")
     }
 
     private func capture(_ name: String) {
