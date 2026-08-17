@@ -201,6 +201,10 @@ struct ChapterView: View {
                         HadithCard(hadith: item)
                     }
                     .buttonStyle(.plain)
+                    .savedMenu(
+                        ref: HadithRef(collectionSlug: item.collectionSlug, number: item.number),
+                        library: corpus.library
+                    )
                 }
 
                 if hadith.count < total {

@@ -125,6 +125,13 @@ struct SearchView: View {
                         HadithCard(hadith: result.hadith, query: model.query, score: result.score)
                     }
                     .buttonStyle(.plain)
+                    .savedMenu(
+                        ref: HadithRef(
+                            collectionSlug: result.hadith.collectionSlug,
+                            number: result.hadith.number
+                        ),
+                        library: corpus.library
+                    )
                 }
 
                 if model.hasSearched && model.visibleResults.isEmpty {
