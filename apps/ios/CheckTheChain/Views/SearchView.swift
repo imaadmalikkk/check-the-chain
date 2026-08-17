@@ -96,6 +96,7 @@ struct SearchView: View {
             // the reference designs put nothing in the top bar at all.
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
+            .libraryToolbar(corpus: corpus)
             .navigationDestination(for: Route.self) { $0.destination(corpus: corpus) }
         }
         .searchable(

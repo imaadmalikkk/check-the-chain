@@ -27,6 +27,7 @@ struct BrowseView: View {
             // section — and it is the loudest thing on an otherwise quiet page.
             .navigationTitle("Browse")
             .navigationBarTitleDisplayMode(.inline)
+            .libraryToolbar(corpus: corpus)
             .navigationDestination(for: Route.self) { $0.destination(corpus: corpus) }
         }
         .task {
