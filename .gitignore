@@ -71,3 +71,7 @@ xcuserdata/
 
 # Swift Package Manager build products
 .build/
+
+# Subagent-driven-development scratch: ledgers, briefs, review packages.
+# The git history is the real record.
+/.superpowers/
