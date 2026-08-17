@@ -115,7 +115,17 @@ struct LibraryView: View {
                 .foregroundStyle(Palette.inkMuted)
             Button("Remove") {
                 Task {
-                    _ = try? await corpus.library?.toggleSaved(ref)
+                    // Segment-specific: under Recent the ref lives in
+                    // `ViewedHadith`, not `SavedHadith`, and `toggleSaved`
+                    // cannot touch it — worse, since a dangling Recent ref is
+                    // essentially never also saved, calling `toggleSaved` here
+                    // would *insert* a bogus Saved row instead of removing
+                    // anything. Each segment's row must clear the store it
+                    // actually came from.
+                    switch segment {
+                    case .saved: _ = try? await corpus.library?.toggleSaved(ref)
+                    case .recent: try? await corpus.library?.removeRecent(ref)
+                    }
                     await reload()
                 }
             }
@@ -141,17 +151,35 @@ struct LibraryView: View {
     }
 
     private func reload() async {
+        // Captured up front rather than read again after the awaits below:
+        // `.task(id: segment)` cancels the in-flight task when the segment
+        // changes, but none of `library.saved()`, `library.recent()`, or
+        // `store.hadith(refs:)` check `Task.isCancelled` — they are plain
+        // actor calls that run to completion regardless. Without this guard a
+        // slow call for the *previous* segment can finish after a fast call
+        // for the new one and overwrite `refs`/`resolved` with stale data,
+        // leaving the picker reading one segment while the list shows
+        // another's rows. Comparing against `self.segment` at write time is
+        // what makes a late, stale completion a no-op instead of a visible
+        // regression.
+        let requested = segment
+
+        // No `await` yet, so `segment` cannot have moved since `requested` was
+        // captured — nothing stale to guard against on this branch.
         guard let library = corpus.library else {
             refs = []
             isLoading = false
             return
         }
         isLoading = true
-        let next = switch segment {
+        let next = switch requested {
         case .saved: (try? await library.saved()) ?? []
         case .recent: (try? await library.recent()) ?? []
         }
-        resolved = (try? await corpus.store.hadith(refs: next)) ?? [:]
+        let nextResolved = (try? await corpus.store.hadith(refs: next)) ?? [:]
+
+        guard segment == requested else { return }
+        resolved = nextResolved
         refs = next
         isLoading = false
     }

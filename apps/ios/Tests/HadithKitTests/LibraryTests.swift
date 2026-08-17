@@ -68,6 +68,36 @@ struct LibraryTests {
         #expect(!recent.contains(HadithRef(collectionSlug: "sahih-al-bukhari", number: "0")))
     }
 
+    /// Backs the dangling row's "Remove" action under the Recent segment.
+    /// `toggleSaved` cannot remove a Recent entry — it operates on `SavedHadith`
+    /// — so this is the API that actually does it, and it must leave everything
+    /// else (other Recent rows, all of Saved) untouched.
+    @Test("Removing one Recent entry leaves the rest of Recent and all of Saved alone")
+    func removeRecentIsTargeted() async throws {
+        let library = try Library(url: nil)
+        try await library.save(bukhari1)
+        await library.recordView(bukhari1)
+        await library.recordView(muslim1)
+
+        try await library.removeRecent(bukhari1)
+
+        #expect(try await library.recent() == [muslim1])
+        #expect(try await library.saved() == [bukhari1])
+    }
+
+    /// The dangling row's ref is by definition not resolvable against the
+    /// corpus, so the caller has no way to check membership first — removal
+    /// must tolerate a ref that was never in Recent to begin with.
+    @Test("Removing a ref that isn't in Recent does not throw")
+    func removeRecentAbsentRefIsNoOp() async throws {
+        let library = try Library(url: nil)
+        await library.recordView(muslim1)
+
+        try await library.removeRecent(bukhari1)
+
+        #expect(try await library.recent() == [muslim1])
+    }
+
     @Test("Clearing history leaves the starred list alone")
     func clearRecentKeepsSaved() async throws {
         let library = try Library(url: nil)

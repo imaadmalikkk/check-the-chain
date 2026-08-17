@@ -156,6 +156,23 @@ public actor Library {
         try modelContext.save()
     }
 
+    /// Removes a single Recent entry. A no-op, not an error, if the ref isn't
+    /// there — this backs the dangling row's "Remove" action, where the ref is
+    /// by definition not resolvable against anything the caller can check first.
+    public func removeRecent(_ ref: HadithRef) throws {
+        // `#Predicate` cannot reach through a struct, so the components are
+        // bound to locals first — same shape as `existing(_:)` above.
+        let slug = ref.collectionSlug
+        let number = ref.number
+        var descriptor = FetchDescriptor<ViewedHadith>(
+            predicate: #Predicate { $0.collectionSlug == slug && $0.number == number }
+        )
+        descriptor.fetchLimit = 1
+        guard let row = try modelContext.fetch(descriptor).first else { return }
+        modelContext.delete(row)
+        try modelContext.save()
+    }
+
     /// Pruned on write rather than on read, so the store cannot grow without
     /// bound on a device whose owner never opens the Recent list.
     private func prune() throws {
