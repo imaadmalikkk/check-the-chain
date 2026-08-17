@@ -30,6 +30,12 @@ struct HadithDetailView: View {
     }
 
     @State private var hadith: Hadith?
+    @State private var isSaved = false
+    /// Default on. Someone who wants no reading history can turn it off in the
+    /// library sheet; see Task 7.
+    @AppStorage("recordsHistory") private var recordsHistory = true
+
+    private var ref: HadithRef { HadithRef(collectionSlug: slug, number: number) }
 
     var body: some View {
         ScrollView {
@@ -100,6 +106,17 @@ struct HadithDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if let hadith {
+                if corpus.library != nil {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            Task { await toggleSaved() }
+                        } label: {
+                            Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
+                        }
+                        .accessibilityLabel(isSaved ? "Remove from saved" : "Save")
+                        .accessibilityIdentifier("saveToggle")
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     ShareLink(item: shareText(hadith)) {
                         Image(systemName: "square.and.arrow.up")
@@ -109,6 +126,22 @@ struct HadithDetailView: View {
         }
         .task {
             hadith = try? await corpus.store.hadith(slug: slug, number: number)
+            guard let library = corpus.library else { return }
+            isSaved = (try? await library.isSaved(ref)) ?? false
+            if recordsHistory {
+                await library.recordView(ref)
+            }
+        }
+    }
+
+    /// Unlike `recordView`, a failure here has to be visible: the reader asked
+    /// for this, so it must not appear to have worked when it did not.
+    private func toggleSaved() async {
+        guard let library = corpus.library else { return }
+        do {
+            isSaved = try await library.toggleSaved(ref)
+        } catch {
+            isSaved = (try? await library.isSaved(ref)) ?? isSaved
         }
     }
 
