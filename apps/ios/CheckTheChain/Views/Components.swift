@@ -3,9 +3,11 @@ import HadithKit
 
 /// The authenticity grading, shown as term + plain-English gloss.
 ///
-/// The gloss is not optional. "Da'if" means nothing to most people opening this
-/// app, and the whole purpose of the product is telling someone whether a hadith
-/// they were sent is sound.
+/// The gloss is always announced, even when `compact` drops it from the
+/// visible text. "Da'if" means nothing to most people opening this app, and
+/// the whole purpose of the product is telling someone whether a hadith they
+/// were sent is sound — a VoiceOver user hearing "Da'if" alone, with no
+/// "Weak" attached, has lost exactly that.
 struct GradingBadge: View {
     let grading: Grading
     var compact = false
@@ -27,6 +29,12 @@ struct GradingBadge: View {
         // Grading is important enough to scale, but it's a badge — past
         // accessibility1 it stops being a badge and starts being a paragraph.
         .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+        // `.accessibilityElement(children: .ignore)` so this always reads as
+        // one element with this label, regardless of `compact` — without it,
+        // VoiceOver would speak the label *and* still separately visit the
+        // child `Text` views when `compact` is false, doubling the term.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(grading.rawValue), \(grading.meaning)")
     }
 }
 

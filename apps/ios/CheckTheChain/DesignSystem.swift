@@ -44,9 +44,12 @@ enum Radius {
 ///
 /// This is the most information-dense element in the app: it is the answer to
 /// "is this hadith real". Colour alone can't carry that — the term and its
-/// plain-English gloss are always shown together, and the palette is only a
-/// reinforcement. The fills are lighter than they were and the outlines are
-/// gone; a badge does not need a border to read as a badge.
+/// plain-English gloss are always announced together via `accessibilityLabel`,
+/// and shown together in visible text wherever there's room; the compact form
+/// used in list cards drops the gloss from what's on screen but never from
+/// what VoiceOver says. The palette is only a reinforcement. The fills are
+/// lighter than they were and the outlines are gone; a badge does not need a
+/// border to read as a badge.
 extension Grading {
     var tint: Color {
         switch self {
