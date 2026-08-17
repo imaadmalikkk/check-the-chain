@@ -127,6 +127,18 @@ public actor Library {
         return try modelContext.fetch(descriptor).first
     }
 
+    /// Removes a single Saved entry. Mirrors `removeRecent` below: the
+    /// dangling row's Saved-segment Remove used to call `toggleSaved`,
+    /// relying on "it came from `saved()`, so toggling removes it" — correct
+    /// only as long as that assumption holds, and structurally the same bug
+    /// already fixed on the Recent side. This is the API that lets the Saved
+    /// side stop relying on it. A no-op, not an error, if the ref isn't saved.
+    public func removeSaved(_ ref: HadithRef) throws {
+        guard let row = try existing(ref) else { return }
+        modelContext.delete(row)
+        try modelContext.save()
+    }
+
     // MARK: - Recently viewed
 
     /// Failures are swallowed on purpose. Not logging a view is invisible to
@@ -138,7 +150,11 @@ public actor Library {
             try modelContext.save()
             try prune()
         } catch {
-            // Intentionally ignored — see above.
+            // Not surfaced to the reader — see above — but still logged. An
+            // error here can only mean something is wrong with the store
+            // itself (e.g. a failed migration), and that should be visible
+            // somewhere even though it must never interrupt anyone reading.
+            Log.library.error("recordView failed for \(ref.collectionSlug, privacy: .public)/\(ref.number, privacy: .public): \(error, privacy: .public)")
         }
     }
 

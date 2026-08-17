@@ -29,8 +29,18 @@ public final class Corpus: Sendable {
         embedder = try Embedder(compiledModelURL: modelURL, vocabularyURL: vocabularyURL)
         engine = try SearchEngine(store: store, index: index, embedder: embedder)
         // Deliberately not `try`. A corpus with no library is a working app; a
-        // corpus that refuses to open because of the library is not.
-        library = libraryURL.flatMap { try? Library(url: $0) }
+        // corpus that refuses to open because of the library is not. The
+        // failure is still logged, though — silently swallowing it would mean
+        // a future SwiftData migration failure makes every favourite vanish
+        // with no crash, no message, and no trace to find later.
+        library = libraryURL.flatMap { url in
+            do {
+                return try Library(url: url)
+            } catch {
+                Log.library.error("Failed to open library at \(url.path, privacy: .public): \(error, privacy: .public)")
+                return nil
+            }
+        }
     }
 
     /// Loads from a bundle's resources under the names the pipeline emits.
