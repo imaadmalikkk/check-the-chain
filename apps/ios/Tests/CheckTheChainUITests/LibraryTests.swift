@@ -59,5 +59,22 @@ final class LibraryUITests: XCTestCase {
             app.staticTexts["Sahih al-Bukhari 1"].waitForExistence(timeout: 15),
             "The starred hadith did not survive a cold launch"
         )
+
+        // `star.tap()` above is a toggle against the real on-disk store, not
+        // a fixture reset — this test's correctness up to this point depends
+        // entirely on the app container starting out empty, which is only
+        // guaranteed by `scripts/uitest.sh`'s `xcrun simctl uninstall`. Run
+        // this test a second time from Xcode (Cmd-U) or via a bare
+        // `xcodebuild test` — both reinstall the app but preserve its
+        // container — and without this, the second run's `star.tap()` would
+        // remove the star instead of creating it, failing with "The starred
+        // hadith did not survive a cold launch" and blaming a persistence bug
+        // that does not exist. Unstarring again here leaves the store as it
+        // was found, so the test is correct however it is invoked, on top of
+        // (not instead of) the `uitest.sh` uninstall.
+        app.staticTexts["Sahih al-Bukhari 1"].tap()
+        let starAgain = app.buttons["saveToggle"]
+        XCTAssertTrue(starAgain.waitForExistence(timeout: 10), "No save button on the detail page after relaunch")
+        starAgain.tap()
     }
 }

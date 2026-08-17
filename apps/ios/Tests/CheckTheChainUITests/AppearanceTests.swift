@@ -47,7 +47,7 @@ final class AppearanceTests: XCTestCase {
         let app = launch()
         assertAppearance(app, isDark: true)
         capture(app, "dark-00-search-canvas")
-        XCTAssertTrue(openToday(app))
+        XCTAssertTrue(openToday(app), "The Today tab never showed a hadith of the day")
         capture(app, "dark-01-today")
 
         app.staticTexts["Read in full"].tap()
