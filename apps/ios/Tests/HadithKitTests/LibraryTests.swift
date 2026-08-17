@@ -98,6 +98,33 @@ struct LibraryTests {
         #expect(try await library.recent() == [muslim1])
     }
 
+    /// Backs the dangling row's Remove action under the Saved segment — the
+    /// counterpart to `removeRecentIsTargeted` above. The Saved side used to
+    /// have no API of its own and called `toggleSaved` instead, which is only
+    /// correct as long as the ref really is saved.
+    @Test("Removing one Saved entry leaves the rest of Saved and all of Recent alone")
+    func removeSavedIsTargeted() async throws {
+        let library = try Library(url: nil)
+        try await library.save(bukhari1)
+        try await library.save(muslim1)
+        await library.recordView(bukhari1)
+
+        try await library.removeSaved(bukhari1)
+
+        #expect(try await library.saved() == [muslim1])
+        #expect(try await library.recent() == [bukhari1])
+    }
+
+    @Test("Removing a ref that isn't saved does not throw")
+    func removeSavedAbsentRefIsNoOp() async throws {
+        let library = try Library(url: nil)
+        try await library.save(muslim1)
+
+        try await library.removeSaved(bukhari1)
+
+        #expect(try await library.saved() == [muslim1])
+    }
+
     @Test("Clearing history leaves the starred list alone")
     func clearRecentKeepsSaved() async throws {
         let library = try Library(url: nil)
@@ -108,6 +135,35 @@ struct LibraryTests {
 
         #expect(try await library.recent().isEmpty)
         #expect(try await library.saved() == [bukhari1])
+    }
+
+    /// Every other test in this suite uses `Library(url: nil)` — in memory —
+    /// which proves nothing about data actually reaching disk and never
+    /// exercises the `#Unique` upsert path against a real SQLite file. This
+    /// writes through one `Library`, releases it, opens a second `Library` at
+    /// the same URL, and reads the data back.
+    @Test("Saved and Recent survive closing and reopening the store on disk")
+    func onDiskRoundTrip() async throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("library-round-trip-\(UUID().uuidString).store")
+        let directory = url.deletingLastPathComponent()
+        let walURL = directory.appendingPathComponent(url.lastPathComponent + "-wal")
+        let shmURL = directory.appendingPathComponent(url.lastPathComponent + "-shm")
+        defer {
+            try? FileManager.default.removeItem(at: url)
+            try? FileManager.default.removeItem(at: walURL)
+            try? FileManager.default.removeItem(at: shmURL)
+        }
+
+        do {
+            let library = try Library(url: url)
+            try await library.save(bukhari1)
+            await library.recordView(muslim1)
+        }
+
+        let reopened = try Library(url: url)
+        #expect(try await reopened.saved() == [bukhari1])
+        #expect(try await reopened.recent() == [muslim1])
     }
 
     /// The app must survive a library that will not open. Search and browsing

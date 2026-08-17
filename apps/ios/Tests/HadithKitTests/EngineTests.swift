@@ -106,12 +106,17 @@ struct StoreTests {
     @Test("Batch ref lookup chunks past SQLite's variable limit")
     func batchRefLookupChunks() async throws {
         let store = try TestFixtures.corpus().store
-        // 250 refs is 500 bound variables, past the 200-per-chunk boundary.
-        let refs = (1...250).map { HadithRef(collectionSlug: "sahih-al-bukhari", number: "\($0)") }
+        // 600 refs is 1,200 bound variables — past not just the 200-per-chunk
+        // boundary but past SQLite's real 999-variable limit itself. The
+        // previous fixture (250 refs = 500 variables) exercised multi-chunk
+        // merging but stayed under 999 unchunked too, so it would keep
+        // passing even if the implementation's chunk size were raised from
+        // 200 to, say, 600. This fixture cannot pass without chunking.
+        let refs = (1...600).map { HadithRef(collectionSlug: "sahih-al-bukhari", number: "\($0)") }
 
         let found = try await store.hadith(refs: refs)
 
-        #expect(found.count == 250)
+        #expect(found.count == 600)
     }
 }
 
