@@ -122,6 +122,14 @@ public actor AnswerEngine {
         your summary, so quoting wastes the reader's attention and risks \
         misquoting. Refer to them by what they say, not by reproducing them.
 
+        The numbers are for your reply only — the reader never sees them. Never \
+        write "the second one" or "narration 6". Write about the subject \
+        itself, as one paragraph a person could read aloud without having the \
+        list in front of them.
+
+        Only describe narrations that bear on the question. Ignore the rest \
+        rather than mentioning them, and do not summarise the list as a list.
+
         Never state a ruling, obligation or prohibition that the narrations do \
         not themselves state. You are describing what these narrations say, not \
         issuing a judgement.

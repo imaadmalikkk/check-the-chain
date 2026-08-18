@@ -28,6 +28,18 @@ final class AppModel {
     /// `HadithKit` stays UI-free.
     let savedState = SavedState()
 
+    /// Nil until the corpus is ready, and on any device without Apple
+    /// Intelligence. Lives here rather than on `Corpus` because `AnswerEngine`
+    /// requires iOS 26 while `HadithKit` floors at 18 — putting it on `Corpus`
+    /// would mean `@available` on a stored property in a package that
+    /// deliberately supports the older target.
+    private(set) var answerEngine: AnswerEngine?
+
+    /// Whether to offer the Ask affordance at all, and what to say if not.
+    /// Read fresh each time: Apple Intelligence can be switched on, and the
+    /// model can finish downloading, while the app is running.
+    var answerAvailability: AnswerEngine.Availability { AnswerEngine.availability }
+
     var corpus: Corpus? {
         if case .ready(let corpus) = state { return corpus }
         return nil
@@ -48,6 +60,14 @@ final class AppModel {
 
             await corpus.embedder.warmUp()
             isSemanticSearchReady = await corpus.embedder.isReady
+
+            // After the embedder, not before: search must become useful first,
+            // and a cold Ask costs the user nothing until they ask.
+            if AnswerEngine.availability == .available {
+                let engine = AnswerEngine(engine: corpus.engine)
+                answerEngine = engine
+                await engine.prewarm()
+            }
         } catch {
             state = .failed(error.localizedDescription)
         }
