@@ -8,4 +8,5 @@ import os
 /// migration failure would make every favourite vanish silently without this.
 enum Log {
     static let library = Logger(subsystem: "com.checkthechain.app", category: "Library")
+    static let ask = Logger(subsystem: "com.checkthechain.app", category: "Ask")
 }
