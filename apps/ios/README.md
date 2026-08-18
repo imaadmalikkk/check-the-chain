@@ -195,6 +195,20 @@ That is now fixed at the source — see `apps/web/scripts/lib/isnad.ts`. Rebuilt
 
 The lexicon still carries translations for `قال`, `وحدثنا`, `ح` and the rest. They are close to dead code now, and deliberately kept: the residual 0.11% is mostly `عن` meaning "about" rather than "from", which no split can disambiguate, and a fragment that slips through should still read as a fragment rather than as an invented narrator called "Qal".
 
+## Ask, and why the model cannot quote
+
+Ask summarises the narrations a search found. It runs on-device through the Foundation Models framework, so it costs nothing and works with no network, like everything else here.
+
+This is the one place in the app where text appears that no scholar wrote and no collection published, and people act on what they read about religion. Three failure modes, in increasing order of how hard they are to notice:
+
+1. **Fabricating a narration.** Made structurally impossible. The model is shown a numbered list of candidates and returns *which numbers* answer the question — it has no channel through which a narration can leave it. Every word of scripture on screen is read from `hadith.sqlite`.
+2. **Answering from pretraining.** The model has read Islamic texts; asked something the corpus does not cover, its instinct is to answer anyway. `DraftAnswer.answered` exists so it can decline, the instructions say plainly that declining is correct, and `AnswerValidator` treats an answer with no citations as a decline — that is the shape this failure takes. `AnswerEngineTests` probes it directly by asking for the capital of France.
+3. **Subtly misstating a ruling** while every citation stays correct. Mitigated, not eliminated. It is the accepted cost of summarising rather than only selecting, and it is what the disclaimer attached to every summary is for.
+
+`AnswerValidator` is a pure function over plain values rather than the model's `@Generable` type. Apple Intelligence is unavailable on plenty of machines, and the rules that stop a religious answer going wrong must not be the part that goes untested when it is.
+
+Every failure — a guardrail violation, a context overflow, a declined draft, an ineligible device — collapses to the same outcome: no summary, plain ranked results, the app exactly as it behaves without the feature. Nothing here degrades to showing something worse, only to showing less.
+
 ## Layout rules the corpus forced
 
 Three constraints came out of looking at real data and real screens rather than from taste:
@@ -228,7 +242,6 @@ The honest trade: `.ultraThinMaterial` approximates Liquid Glass but does not ma
 
 Out of scope for v1, listed so the boundary is explicit rather than forgotten:
 
-- **AI chat over retrieved hadith** via the Foundation Models framework. On-device, free, private — and the closest thing to a real differentiator. Needs a capability fallback: Apple Intelligence requires iPhone 15 Pro or newer.
 - **Widgets, daily notification, share cards.**
 - **Arabic full-text search** — a second FTS5 table with `remove_diacritics 2`. Cheap to add and genuinely useful for a corpus that is 71% Arabic by volume.
 - **Universal links.** `Route` already mirrors the web app's URL shapes, so this is mostly an entitlement and a path parser.
