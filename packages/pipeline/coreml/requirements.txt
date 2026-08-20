@@ -1,0 +1,5 @@
+coremltools>=8.3
+torch>=2.4,<2.7
+transformers>=4.44,<5
+numpy<2.0
+sentencepiece
